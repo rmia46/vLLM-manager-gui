@@ -3,6 +3,7 @@ import os
 import requests
 import webbrowser
 import psutil
+import subprocess
 import qtawesome as qta
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -22,6 +23,24 @@ from vllm_flags_info import VLLM_FLAGS_HELP
 from stitch_theme import STITCH_DARK_STYLESHEET
 
 VENV_VLLM = "/data/rspace/codespace/libs/python_env/3.12/.venv/bin/vllm"
+
+def get_gpu_info():
+    """
+    Returns (gpu_name, memory_used_mb, memory_total_mb, utilization_percent)
+    or None if nvidia-smi fails.
+    """
+    try:
+        res = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.used,memory.total,utilization.gpu", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=2
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            parts = [p.strip() for p in res.stdout.strip().split(",")]
+            if len(parts) >= 4:
+                return parts[0], float(parts[1]), float(parts[2]), float(parts[3])
+    except Exception:
+        pass
+    return None
 
 class SolidCard(QFrame):
     def __init__(self, title_text, icon_name=None):
@@ -211,8 +230,8 @@ class VLLMManagerGUI(QMainWindow):
         server_layout.setContentsMargins(0, 0, 0, 0)
         server_layout.setSpacing(12)
 
-        # Rich Primary Action & System Resource Monitor Card
-        hero_card = SolidCard("Primary Action & System Environment Monitor")
+        # Primary Action & GPU System Monitor Card
+        hero_card = SolidCard("Primary Action & GPU System Monitor")
         
         hero_top = QHBoxLayout()
         hero_top.setSpacing(10)
@@ -245,11 +264,33 @@ class VLLMManagerGUI(QMainWindow):
 
         hero_card.body_layout.addLayout(hero_top)
 
-        # System & Environment Gauges Grid
+        # System & Dedicated GPU Gauges Grid
         env_grid = QGridLayout()
         env_grid.setSpacing(10)
 
-        # Gauges
+        # Dedicated GPU VRAM Gauge
+        gpu_col = QVBoxLayout()
+        gpu_col.setSpacing(2)
+        self.gpu_name_label = QLabel("GPU VRAM: DETECTING...")
+        self.gpu_name_label.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3;")
+        self.gpu_bar = QProgressBar()
+        self.gpu_bar.setValue(0)
+        gpu_col.addWidget(self.gpu_name_label)
+        gpu_col.addWidget(self.gpu_bar)
+        env_grid.addLayout(gpu_col, 0, 0)
+
+        # GPU Compute Core Util Gauge
+        gpu_util_col = QVBoxLayout()
+        gpu_util_col.setSpacing(2)
+        self.gpu_util_label = QLabel("GPU CORE UTILIZATION: 0%")
+        self.gpu_util_label.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3;")
+        self.gpu_util_bar = QProgressBar()
+        self.gpu_util_bar.setValue(0)
+        gpu_util_col.addWidget(self.gpu_util_label)
+        gpu_util_col.addWidget(self.gpu_util_bar)
+        env_grid.addLayout(gpu_util_col, 0, 1)
+
+        # CPU Usage Bar
         cpu_col = QVBoxLayout()
         cpu_col.setSpacing(2)
         self.cpu_label = QLabel("CPU USAGE: 0%")
@@ -258,8 +299,9 @@ class VLLMManagerGUI(QMainWindow):
         self.cpu_bar.setValue(0)
         cpu_col.addWidget(self.cpu_label)
         cpu_col.addWidget(self.cpu_bar)
-        env_grid.addLayout(cpu_col, 0, 0)
+        env_grid.addLayout(cpu_col, 1, 0)
 
+        # RAM Usage Bar
         ram_col = QVBoxLayout()
         ram_col.setSpacing(2)
         self.ram_label = QLabel("RAM USAGE: 0 GB / 0 GB")
@@ -268,7 +310,7 @@ class VLLMManagerGUI(QMainWindow):
         self.ram_bar.setValue(0)
         ram_col.addWidget(self.ram_label)
         ram_col.addWidget(self.ram_bar)
-        env_grid.addLayout(ram_col, 0, 1)
+        env_grid.addLayout(ram_col, 1, 1)
 
         # Environment Readiness Status Badges
         vllm_installed = os.path.exists(VENV_VLLM)
@@ -284,7 +326,7 @@ class VLLMManagerGUI(QMainWindow):
         env_status_row.addWidget(self.webui_env_lbl)
         env_status_row.addStretch()
 
-        env_grid.addLayout(env_status_row, 1, 0, 1, 2)
+        env_grid.addLayout(env_status_row, 2, 0, 1, 2)
         hero_card.body_layout.addLayout(env_grid)
 
         server_layout.addWidget(hero_card)
@@ -482,6 +524,7 @@ class VLLMManagerGUI(QMainWindow):
         main_layout.addWidget(right_dock)
 
     def update_system_stats(self):
+        # Update CPU & RAM
         cpu = psutil.cpu_percent()
         self.cpu_bar.setValue(int(cpu))
         self.cpu_label.setText(f"CPU USAGE: {cpu:.1f}%")
@@ -492,13 +535,32 @@ class VLLMManagerGUI(QMainWindow):
         self.ram_bar.setValue(int(ram.percent))
         self.ram_label.setText(f"RAM USAGE: {ram_used_gb:.1f} GB / {ram_total_gb:.1f} GB")
 
+        # Update Dedicated GPU Stats
+        gpu_info = get_gpu_info()
+        if gpu_info:
+            gpu_name, used_mb, total_mb, util_pct = gpu_info
+            used_gb = used_mb / 1024.0
+            total_gb = total_mb / 1024.0
+            vram_pct = (used_mb / total_mb) * 100.0 if total_mb > 0 else 0
+
+            self.gpu_name_label.setText(f"GPU VRAM ({gpu_name}): {used_gb:.2f} GB / {total_gb:.2f} GB")
+            self.gpu_bar.setValue(int(vram_pct))
+
+            self.gpu_util_label.setText(f"GPU CORE UTILIZATION: {util_pct:.0f}%")
+            self.gpu_util_bar.setValue(int(util_pct))
+        else:
+            self.gpu_name_label.setText("GPU VRAM: NO NVIDIA GPU DETECTED")
+            self.gpu_bar.setValue(0)
+            self.gpu_util_label.setText("GPU CORE UTILIZATION: N/A")
+            self.gpu_util_bar.setValue(0)
+
     def switch_tab(self, index):
         self.stack.setCurrentIndex(index)
         self.nav_server_btn.setChecked(index == 0)
         self.nav_browser_btn.setChecked(index == 1)
 
         self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ffb3b3' if index == 0 else '#ac8888'))
-        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 0 else '#ac8888'))
+        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 1 else '#ac8888'))
 
     def select_cache_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select HF Cache Directory", self.current_cache_dir)
