@@ -24,7 +24,7 @@ class FlagsHelpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("vLLM Command Line Flags Help")
-        self.resize(720, 520)
+        self.resize(760, 560)
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         layout = QVBoxLayout(self)
@@ -43,7 +43,7 @@ class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("vLLM Manager")
-        self.resize(1280, 850)
+        self.resize(1340, 880)
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
@@ -72,34 +72,34 @@ class VLLMManagerGUI(QMainWindow):
         main_layout.setSpacing(0)
 
         # -------------------------------------------------------------
-        # Left Sidebar
+        # Left Sidebar (Prominent & Extra Large Title/Logo)
         # -------------------------------------------------------------
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(250)
+        sidebar.setFixedWidth(300)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(14, 20, 14, 20)
-        sidebar_layout.setSpacing(10)
+        sidebar_layout.setContentsMargins(18, 24, 18, 24)
+        sidebar_layout.setSpacing(12)
 
-        # Brand header with SVG logo (larger)
+        # Prominent Header Layout
         brand_layout = QHBoxLayout()
-        brand_layout.setSpacing(10)
+        brand_layout.setSpacing(12)
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
         if os.path.exists(logo_path):
             logo_lbl = QLabel()
-            pix = QPixmap(logo_path).scaled(44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix = QPixmap(logo_path).scaled(56, 56, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             logo_lbl.setPixmap(pix)
             brand_layout.addWidget(logo_lbl)
 
         brand_label = QLabel("vLLM Manager")
-        brand_label.setFont(QFont("Plus Jakarta Sans", 20, QFont.Bold))
+        brand_label.setFont(QFont("Plus Jakarta Sans", 26, QFont.Bold))
         brand_label.setStyleSheet("color: #dc143c; margin-bottom: 0px;")
         brand_layout.addWidget(brand_label, 1)
 
         sidebar_layout.addLayout(brand_layout)
-        sidebar_layout.addSpacing(20)
+        sidebar_layout.addSpacing(24)
 
-        # Navigation buttons
+        # Navigation buttons with larger text
         self.nav_server_btn = QPushButton("  Server Manager")
         self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ac8888'))
         self.nav_server_btn.setObjectName("navBtn")
@@ -131,22 +131,23 @@ class VLLMManagerGUI(QMainWindow):
         # -------------------------------------------------------------
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
-        content_layout.setContentsMargins(16, 16, 16, 16)
+        content_layout.setContentsMargins(20, 20, 20, 20)
 
         # Top Header Status Bar
         header_bar = QHBoxLayout()
-        header_title = QLabel("vLLM Manager")
-        header_title.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
+        header_title = QLabel("vLLM Manager Control Center")
+        header_title.setFont(QFont("Plus Jakarta Sans", 22, QFont.Bold))
         header_title.setStyleSheet("color: #e5e2e1;")
         header_bar.addWidget(header_title)
 
         header_bar.addStretch()
 
         cache_label = QLabel("HF Cache:")
+        cache_label.setStyleSheet("font-size: 15px; font-weight: 600;")
         header_bar.addWidget(cache_label)
 
         self.cache_dir_edit = QLineEdit(self.current_cache_dir)
-        self.cache_dir_edit.setFixedWidth(260)
+        self.cache_dir_edit.setFixedWidth(280)
         header_bar.addWidget(self.cache_dir_edit)
 
         browse_dir_btn = QPushButton("Browse")
@@ -181,7 +182,7 @@ class VLLMManagerGUI(QMainWindow):
         model_layout.addWidget(self.model_combo, 1)
         refresh_btn = QPushButton()
         refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#e5e2e1'))
-        refresh_btn.setFixedWidth(36)
+        refresh_btn.setFixedWidth(42)
         refresh_btn.setToolTip("Rescan local models")
         refresh_btn.clicked.connect(self.refresh_models)
         model_layout.addWidget(refresh_btn)
@@ -255,7 +256,7 @@ class VLLMManagerGUI(QMainWindow):
         btn_layout.addWidget(self.stop_vllm_btn)
 
         self.vllm_status_lbl = QLabel("STATUS: IDLE")
-        self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #ffb4a5; padding-left: 10px;")
+        self.vllm_status_lbl.setStyleSheet("font-weight: bold; font-size: 15px; color: #ffb4a5; padding-left: 10px;")
         btn_layout.addWidget(self.vllm_status_lbl)
         vllm_layout.addLayout(btn_layout)
 
@@ -265,6 +266,7 @@ class VLLMManagerGUI(QMainWindow):
         webui_box = QGroupBox("Open WebUI Monitor")
         webui_layout = QVBoxLayout(webui_box)
         self.docker_status_lbl = QLabel("Container Status: Checking...")
+        self.docker_status_lbl.setStyleSheet("font-size: 14px;")
         self.docker_status_lbl.setWordWrap(True)
         webui_layout.addWidget(self.docker_status_lbl)
 
@@ -442,9 +444,9 @@ class VLLMManagerGUI(QMainWindow):
     def on_vllm_status_change(self, status):
         self.vllm_status_lbl.setText(f"STATUS: {status}")
         if status == "RUNNING":
-            self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #a6e3a1;")
+            self.vllm_status_lbl.setStyleSheet("font-weight: bold; font-size: 15px; color: #a6e3a1;")
         elif status in ["STOPPED", "IDLE", "ERROR"]:
-            self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #f38ba8;")
+            self.vllm_status_lbl.setStyleSheet("font-weight: bold; font-size: 15px; color: #f38ba8;")
             self.start_vllm_btn.setEnabled(True)
             self.stop_vllm_btn.setEnabled(False)
 
@@ -455,12 +457,12 @@ class VLLMManagerGUI(QMainWindow):
         status = check_open_webui_status()
         if status["container_running"]:
             self.docker_status_lbl.setText(f"Container: RUNNING\n({status['status_text']})")
-            self.docker_status_lbl.setStyleSheet("color: #a6e3a1;")
+            self.docker_status_lbl.setStyleSheet("color: #a6e3a1; font-size: 14px;")
             self.toggle_docker_btn.setText("  Stop Container")
             self.toggle_docker_btn.setIcon(qta.icon('fa5s.stop-circle', color='#e5e2e1'))
         else:
             self.docker_status_lbl.setText(f"Container: STOPPED")
-            self.docker_status_lbl.setStyleSheet("color: #f38ba8;")
+            self.docker_status_lbl.setStyleSheet("color: #f38ba8; font-size: 14px;")
             self.toggle_docker_btn.setText("  Start Container")
             self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#e5e2e1'))
 
