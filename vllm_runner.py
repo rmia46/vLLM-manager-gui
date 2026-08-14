@@ -20,6 +20,7 @@ class VLLMProcessWorker(QThread):
         self.status_changed.emit("STARTING")
         env = os.environ.copy()
         env["HF_HOME"] = self.hf_cache_path
+        env["PYTHONUNBUFFERED"] = "1"
 
         cmd = [VENV_VLLM, "serve"] + self.cmd_args
         self.log_received.emit(f"[vLLM Manager] HF_HOME={self.hf_cache_path}\n")
@@ -35,13 +36,34 @@ class VLLMProcessWorker(QThread):
                 bufsize=1
             )
 
-            for line in iter(self.process.stdout.readline, ''):
-                if line:
-                    self.log_received.emit(line)
-                    if "Uvicorn running on" in line or "Application startup complete" in line:
-                        self.status_changed.emit("RUNNING")
+            buf = ""
+            while True:
+                if self.process.poll() is not None:
+                    # Flush remaining stdout
+                    remaining = self.process.stdout.read()
+                    if remaining:
+                        self.log_received.emit(remaining)
+                    break
 
-            self.process.wait()
+                chunk = self.process.stdout.read(128)
+                if not chunk:
+                    continue
+
+                buf += chunk
+                while '\n' in buf or '\r' in buf:
+                    n_pos = buf.find('\n')
+                    r_pos = buf.find('\r')
+
+                    if n_pos != -1 and (r_pos == -1 or n_pos < r_pos):
+                        line, buf = buf[:n_pos+1], buf[n_pos+1:]
+                    else:
+                        line, buf = buf[:r_pos+1], buf[r_pos+1:]
+
+                    if line:
+                        self.log_received.emit(line)
+                        if "Uvicorn running on" in line or "Application startup complete" in line:
+                            self.status_changed.emit("RUNNING")
+
             if not self._is_stopping:
                 self.status_changed.emit("STOPPED")
                 self.log_received.emit("[vLLM Manager] Process exited.\n")
