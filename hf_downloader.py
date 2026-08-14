@@ -134,7 +134,6 @@ class HFDownloadWorker(QThread):
         self.log_signal.emit(f"Starting download for '{self.repo_id}' into '{self.hf_cache_dir}'...\n")
         self.progress_signal.emit(0, f"Downloading {self.repo_id}...")
 
-        # PyInstaller & Subprocess safe worker runner script
         if self.selected_filename:
             py_code = (
                 "import os, sys\n"
@@ -164,33 +163,43 @@ class HFDownloadWorker(QThread):
             )
 
             last_percent = 0
+            buf = ""
 
-            # Read stderr character-by-character to parse tqdm carriage returns (\r)
-            buffer = ""
+            # Read both stdout and stderr dynamically line by line / character by character
             while True:
                 if self.is_cancelled:
                     if self.process and self.process.poll() is None:
                         self.process.kill()
                     break
 
-                char = self.process.stderr.read(1)
-                if not char:
+                # Non-blocking check for subprocess stdout / stderr text
+                chunk = self.process.stderr.read(128)
+                if not chunk:
                     if self.process.poll() is not None:
                         break
                     continue
 
-                if char in ['\r', '\n']:
-                    line = buffer.strip()
-                    buffer = ""
-                    if line:
-                        self.log_signal.emit(line + "\n")
+                buf += chunk
+                while '\r' in buf or '\n' in buf:
+                    # Pick earliest delimiter
+                    r_pos = buf.find('\r')
+                    n_pos = buf.find('\n')
 
-                        p_match = re.search(r'(\d+)%', line)
+                    if r_pos != -1 and (n_pos == -1 or r_pos < n_pos):
+                        line, buf = buf[:r_pos], buf[r_pos+1:]
+                    else:
+                        line, buf = buf[:n_pos], buf[n_pos+1:]
+
+                    clean_line = line.strip()
+                    if clean_line:
+                        self.log_signal.emit(clean_line + "\n")
+
+                        p_match = re.search(r'(\d+)%', clean_line)
                         if p_match:
                             last_percent = int(p_match.group(1))
 
-                        ratio_match = re.search(r'(\d+/\d+|[\d\.]+[kMGT]?B?/[\d\.]+[kMGT]?B?)', line)
-                        speed_match = re.search(r'([\d\.]+[kMGT]?B/s)', line)
+                        ratio_match = re.search(r'(\d+/\d+|[\d\.]+[kMGT]?B?/[\d\.]+[kMGT]?B?)', clean_line)
+                        speed_match = re.search(r'([\d\.]+[kMGT]?B/s)', clean_line)
 
                         info_parts = []
                         if ratio_match:
@@ -200,8 +209,6 @@ class HFDownloadWorker(QThread):
 
                         speed_str = " | ".join(info_parts) if info_parts else "Downloading..."
                         self.progress_signal.emit(last_percent, f"Downloading {self.repo_id} ({last_percent}%) [{speed_str}]")
-                else:
-                    buffer += char
 
             return_code = self.process.wait() if self.process else 0
 
