@@ -32,23 +32,28 @@ QPushButton#navBtn:checked {
     color: #F8FAFC;
     border-left: 3px solid #DC143C;
 }
-/* Dashboard Cards */
-QGroupBox {
+
+/* Solid Panel Card Containers (No outlines cut through text) */
+QFrame#panelCard {
     background-color: #121418;
     border: 1px solid #1E2228;
     border-radius: 8px;
-    margin-top: 10px;
-    padding: 12px 14px 12px 14px;
+}
+
+/* Solid Header Bar for Groups */
+QLabel#cardHeader {
+    background-color: #1A1D24;
+    color: #F8FAFC;
+    font-weight: 700;
     font-size: 11px;
-    font-weight: bold;
-    color: #DC143C;
+    padding: 6px 12px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom: 1px solid #1E2228;
+    letter-spacing: 0.5px;
 }
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 4px;
-}
-/* Compact Symmetric Inputs */
+
+/* Inputs & Selects */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
     background-color: #181B20;
     border: 1px solid #282D35;
@@ -102,6 +107,19 @@ QPushButton#secondaryBtn {
 QPushButton#secondaryBtn:hover {
     background-color: #282D35;
     color: #F8FAFC;
+}
+QProgressBar {
+    border: 1px solid #282D35;
+    border-radius: 4px;
+    text-align: center;
+    background-color: #181B20;
+    color: #F8FAFC;
+    font-size: 10px;
+    font-weight: bold;
+}
+QProgressBar::chunk {
+    background-color: #DC143C;
+    border-radius: 3px;
 }
 QTextEdit, QTableWidget {
     background-color: #08090A;
