@@ -6,7 +6,8 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QComboBox, QCheckBox, QDoubleSpinBox, QSpinBox,
     QPushButton, QTextEdit, QGroupBox, QSplitter, QMessageBox,
-    QFileDialog, QTabWidget, QDialog, QTableWidget, QTableWidgetItem, QHeaderView
+    QFileDialog, QStackedWidget, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
+    QFrame
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
@@ -16,33 +17,14 @@ from docker_checker import check_open_webui_status, start_open_webui, stop_open_
 from vllm_runner import VLLMProcessWorker
 from hf_downloader import HFBrowserWorker, HFDownloadWorker
 from vllm_flags_info import VLLM_FLAGS_HELP
-
-DARK_STYLESHEET = """
-QMainWindow { background-color: #1e1e2e; color: #cdd6f4; }
-QWidget { font-family: 'Segoe UI', Inter, sans-serif; font-size: 13px; color: #cdd6f4; }
-QTabWidget::pane { border: 1px solid #45475a; border-radius: 6px; background-color: #1e1e2e; }
-QTabBar::tab { background-color: #313244; padding: 8px 16px; margin-right: 2px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
-QTabBar::tab:selected { background-color: #89b4fa; color: #11111b; font-weight: bold; }
-QGroupBox { border: 1px solid #45475a; border-radius: 8px; margin-top: 12px; padding-top: 12px; font-weight: bold; color: #89b4fa; }
-QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { background-color: #313244; border: 1px solid #45475a; border-radius: 6px; padding: 6px 10px; color: #cdd6f4; }
-QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #89b4fa; }
-QPushButton { background-color: #89b4fa; color: #11111b; border-radius: 6px; padding: 8px 14px; font-weight: bold; }
-QPushButton:hover { background-color: #b4befe; }
-QPushButton:disabled { background-color: #45475a; color: #7f849c; }
-QPushButton#stopBtn { background-color: #f38ba8; color: #11111b; }
-QPushButton#stopBtn:hover { background-color: #eba0ac; }
-QPushButton#dockerBtn { background-color: #a6e3a1; color: #11111b; }
-QTextEdit, QTableWidget { background-color: #11111b; border: 1px solid #313244; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 12px; color: #a6adc8; }
-QHeaderView::section { background-color: #313244; color: #cdd6f4; padding: 4px; border: 1px solid #45475a; }
-"""
+from stitch_theme import STITCH_DARK_STYLESHEET
 
 class FlagsHelpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("vLLM Command Line Flags Help")
-        self.resize(700, 500)
-        self.setStyleSheet(DARK_STYLESHEET)
+        self.resize(720, 520)
+        self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         layout = QVBoxLayout(self)
         table = QTableWidget(len(VLLM_FLAGS_HELP), 2)
@@ -59,9 +41,9 @@ class FlagsHelpDialog(QDialog):
 class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("vLLM Manager & Open WebUI Control Center")
-        self.resize(1150, 820)
-        self.setStyleSheet(DARK_STYLESHEET)
+        self.setWindowTitle("vLLM Manager - Obsidian Crimson")
+        self.resize(1280, 850)
+        self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         self.current_cache_dir = DEFAULT_HF_CACHE_DIR
         self.vllm_worker = None
@@ -75,37 +57,102 @@ class VLLMManagerGUI(QMainWindow):
         self.status_timer.start(5000)
         self.update_docker_status()
 
-        # Initial popular models load
         self.browse_hf_models()
 
     def init_ui(self):
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout(central_widget)
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        main_layout = QHBoxLayout(main_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-        # Cache Directory Selector Header
-        cache_row = QHBoxLayout()
-        cache_row.addWidget(QLabel("📂 HF Cache Path:"))
+        # -------------------------------------------------------------
+        # Left Sidebar (Obsidian Crimson Layout from Stitch design)
+        # -------------------------------------------------------------
+        sidebar = QFrame()
+        sidebar.setObjectName("sidebar")
+        sidebar.setFixedWidth(240)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(12, 16, 12, 16)
+        sidebar_layout.setSpacing(8)
+
+        # Brand header
+        brand_label = QLabel("vLLM Control")
+        brand_label.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
+        brand_label.setStyleSheet("color: #dc143c; margin-bottom: 2px;")
+        sub_brand = QLabel("Local Inference Engine")
+        sub_brand.setStyleSheet("color: #ac8888; font-size: 11px; margin-bottom: 16px;")
+        sidebar_layout.addWidget(brand_label)
+        sidebar_layout.addWidget(sub_brand)
+
+        # Navigation buttons
+        self.nav_server_btn = QPushButton("🖥 Server Manager")
+        self.nav_server_btn.setObjectName("navBtn")
+        self.nav_server_btn.setCheckable(True)
+        self.nav_server_btn.setChecked(True)
+        self.nav_server_btn.clicked.connect(lambda: self.switch_tab(0))
+        sidebar_layout.addWidget(self.nav_server_btn)
+
+        self.nav_browser_btn = QPushButton("🤗 Model Browser")
+        self.nav_browser_btn.setObjectName("navBtn")
+        self.nav_browser_btn.setCheckable(True)
+        self.nav_browser_btn.clicked.connect(lambda: self.switch_tab(1))
+        sidebar_layout.addWidget(self.nav_browser_btn)
+
+        sidebar_layout.addStretch()
+
+        # Engine Quick Action in Sidebar
+        restart_btn = QPushButton("🔄 Restart Engine")
+        restart_btn.setObjectName("secondaryBtn")
+        restart_btn.clicked.connect(self.stop_vllm)
+        sidebar_layout.addWidget(restart_btn)
+
+        main_layout.addWidget(sidebar)
+
+        # -------------------------------------------------------------
+        # Main Content Stack Area
+        # -------------------------------------------------------------
+        content_area = QWidget()
+        content_layout = QVBoxLayout(content_area)
+        content_layout.setContentsMargins(16, 16, 16, 16)
+
+        # Top Header Status Bar
+        header_bar = QHBoxLayout()
+        header_title = QLabel("vLLM Manager")
+        header_title.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
+        header_title.setStyleSheet("color: #e5e2e1;")
+        header_bar.addWidget(header_title)
+
+        header_bar.addStretch()
+
+        cache_label = QLabel("HF Cache:")
+        header_bar.addWidget(cache_label)
+
         self.cache_dir_edit = QLineEdit(self.current_cache_dir)
-        cache_row.addWidget(self.cache_dir_edit, 1)
-        browse_dir_btn = QPushButton("Browse Folder")
-        browse_dir_btn.clicked.connect(self.select_cache_directory)
-        cache_row.addWidget(browse_dir_btn)
-        main_layout.addLayout(cache_row)
+        self.cache_dir_edit.setFixedWidth(260)
+        header_bar.addWidget(self.cache_dir_edit)
 
-        tabs = QTabWidget()
-        
-        # TAB 1: vLLM Server & Open WebUI Launcher
-        server_tab = QWidget()
-        server_layout = QVBoxLayout(server_tab)
+        browse_dir_btn = QPushButton("Browse")
+        browse_dir_btn.setObjectName("secondaryBtn")
+        browse_dir_btn.clicked.connect(self.select_cache_directory)
+        header_bar.addWidget(browse_dir_btn)
+
+        content_layout.addLayout(header_bar)
+
+        # Stacked Views
+        self.stack = QStackedWidget()
+
+        # VIEW 1: Server Manager
+        server_view = QWidget()
+        server_layout = QVBoxLayout(server_view)
 
         splitter = QSplitter(Qt.Vertical)
         top_container = QWidget()
         top_layout = QHBoxLayout(top_container)
         top_layout.setContentsMargins(0, 0, 0, 0)
 
-        # vLLM Config Box
-        vllm_box = QGroupBox("vLLM Parameters")
+        # Config Panel
+        vllm_box = QGroupBox("Server Configuration")
         vllm_layout = QVBoxLayout(vllm_box)
 
         model_layout = QHBoxLayout()
@@ -167,41 +214,44 @@ class VLLMManagerGUI(QMainWindow):
         self.extra_flags_edit.setPlaceholderText("e.g. --trust-remote-code --dtype float16")
         row4.addWidget(self.extra_flags_edit)
         flags_help_btn = QPushButton("❓ Flags Info")
+        flags_help_btn.setObjectName("secondaryBtn")
         flags_help_btn.clicked.connect(self.show_flags_help)
         row4.addWidget(flags_help_btn)
         vllm_layout.addLayout(row4)
 
         btn_layout = QHBoxLayout()
         self.start_vllm_btn = QPushButton("▶ Launch vLLM Server")
+        self.start_vllm_btn.setObjectName("primaryBtn")
         self.start_vllm_btn.clicked.connect(self.start_vllm)
         btn_layout.addWidget(self.start_vllm_btn)
 
-        self.stop_vllm_btn = QPushButton("⏹ Stop vLLM Server")
+        self.stop_vllm_btn = QPushButton("⏹ Stop Server")
         self.stop_vllm_btn.setObjectName("stopBtn")
         self.stop_vllm_btn.setEnabled(False)
         self.stop_vllm_btn.clicked.connect(self.stop_vllm)
         btn_layout.addWidget(self.stop_vllm_btn)
 
         self.vllm_status_lbl = QLabel("STATUS: IDLE")
-        self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #f9e2af; padding-left: 10px;")
+        self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #ffb4a5; padding-left: 10px;")
         btn_layout.addWidget(self.vllm_status_lbl)
         vllm_layout.addLayout(btn_layout)
 
         top_layout.addWidget(vllm_box, 2)
 
-        # WebUI Box
+        # Open WebUI Panel
         webui_box = QGroupBox("Open WebUI Monitor")
         webui_layout = QVBoxLayout(webui_box)
         self.docker_status_lbl = QLabel("Container Status: Checking...")
         self.docker_status_lbl.setWordWrap(True)
         webui_layout.addWidget(self.docker_status_lbl)
 
-        open_browser_btn = QPushButton("🌐 Open WebUI")
-        open_browser_btn.setObjectName("dockerBtn")
+        open_browser_btn = QPushButton("🌐 Open WebUI (localhost:8080)")
+        open_browser_btn.setObjectName("primaryBtn")
         open_browser_btn.clicked.connect(lambda: webbrowser.open("http://localhost:8080"))
         webui_layout.addWidget(open_browser_btn)
 
         self.toggle_docker_btn = QPushButton("⚡ Start Container")
+        self.toggle_docker_btn.setObjectName("secondaryBtn")
         self.toggle_docker_btn.clicked.connect(self.toggle_docker)
         webui_layout.addWidget(self.toggle_docker_btn)
         webui_layout.addStretch()
@@ -209,8 +259,8 @@ class VLLMManagerGUI(QMainWindow):
 
         splitter.addWidget(top_container)
 
-        # Log Console
-        log_box = QGroupBox("Console Output Logs")
+        # Output Log Console
+        log_box = QGroupBox("Console Output Stream")
         log_layout = QVBoxLayout(log_box)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
@@ -218,13 +268,12 @@ class VLLMManagerGUI(QMainWindow):
         splitter.addWidget(log_box)
 
         server_layout.addWidget(splitter)
-        tabs.addTab(server_tab, "🚀 Server & Control Center")
+        self.stack.addWidget(server_view)
 
-        # TAB 2: Advanced Hugging Face Browser & Downloader
-        hf_tab = QWidget()
-        hf_layout = QVBoxLayout(hf_tab)
+        # VIEW 2: Model Browser
+        browser_view = QWidget()
+        browser_layout = QVBoxLayout(browser_view)
 
-        # Filter Control Panel
         filter_box = QGroupBox("Browse & Filter Models")
         filter_layout = QVBoxLayout(filter_box)
 
@@ -259,36 +308,43 @@ class VLLMManagerGUI(QMainWindow):
         self.vram_spin.valueChanged.connect(self.browse_hf_models)
         frow2.addWidget(self.vram_spin)
 
-        frow2.addWidget(QLabel("Search Keyword:"))
+        frow2.addWidget(QLabel("Keyword:"))
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search optional keyword...")
         self.search_edit.returnPressed.connect(self.browse_hf_models)
         frow2.addWidget(self.search_edit, 1)
 
-        apply_btn = QPushButton("🔎 Apply Filters")
+        apply_btn = QPushButton("🔎 Apply")
+        apply_btn.setObjectName("secondaryBtn")
         apply_btn.clicked.connect(self.browse_hf_models)
         frow2.addWidget(apply_btn)
         filter_layout.addLayout(frow2)
 
-        hf_layout.addWidget(filter_box)
+        browser_layout.addWidget(filter_box)
 
-        # Table showing models with parameters & estimated VRAM
         self.hf_results_table = QTableWidget(0, 5)
         self.hf_results_table.setHorizontalHeaderLabels(["Model Repo ID", "Params", "Est. VRAM (FP16)", "Downloads", "Likes"])
         self.hf_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.hf_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.hf_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        hf_layout.addWidget(self.hf_results_table)
+        browser_layout.addWidget(self.hf_results_table)
 
         dl_row = QHBoxLayout()
-        self.dl_btn = QPushButton("⬇ Download Selected Model to HF Cache")
+        self.dl_btn = QPushButton("⬇ Download Selected Model to Cache")
+        self.dl_btn.setObjectName("primaryBtn")
         self.dl_btn.clicked.connect(self.download_selected_model)
         dl_row.addWidget(self.dl_btn)
-        hf_layout.addLayout(dl_row)
+        browser_layout.addLayout(dl_row)
 
-        tabs.addTab(hf_tab, "🤗 Hugging Face Model Browser & Downloader")
+        self.stack.addWidget(browser_view)
 
-        main_layout.addWidget(tabs)
+        content_layout.addWidget(self.stack)
+        main_layout.addWidget(content_area)
+
+    def switch_tab(self, index):
+        self.stack.setCurrentIndex(index)
+        self.nav_server_btn.setChecked(index == 0)
+        self.nav_browser_btn.setChecked(index == 1)
 
     def select_cache_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select HF Cache Directory", self.current_cache_dir)
@@ -384,21 +440,15 @@ class VLLMManagerGUI(QMainWindow):
             start_open_webui()
         self.update_docker_status()
 
-    # HuggingFace Browser methods
     def browse_hf_models(self):
         family = self.family_combo.currentText()
         category = self.category_combo.currentText()
         sort_by = self.sort_combo.currentText()
         query = self.search_edit.text().strip()
-
         max_vram = self.vram_spin.value() if self.vram_filter_cb.isChecked() else None
 
         self.browser_worker = HFBrowserWorker(
-            family=family,
-            filter_tag=category,
-            sort_by=sort_by,
-            query=query,
-            max_vram=max_vram
+            family=family, filter_tag=category, sort_by=sort_by, query=query, max_vram=max_vram
         )
         self.browser_worker.results_ready.connect(self.populate_hf_results)
         self.browser_worker.error_occurred.connect(lambda err: QMessageBox.critical(self, "Browse Error", err))
