@@ -8,12 +8,17 @@ Designed following the **Obsidian Crimson** theme specs for power users requirin
 
 ---
 
-## 🚀 One-Line Instant Installation
+## 🚀 System-Wide Installation (Linux x86_64)
 
-Copy & paste the command below into your terminal to automatically download the binary, install it to `~/.local/bin/vllm-manager`, and register **vLLM Manager** in your Linux Applications menu with custom app icons:
+Run the single curl command below to automatically download the latest binary from GitHub Releases, install it system-wide to `/usr/local/bin/vllm-manager`, and register **vLLM Manager** in your system Application Menu with custom icons:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rmia46/vLLM-manager-gui/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rmia46/vLLM-manager-gui/main/install.sh | sudo bash
+```
+
+Once installed, launch the app directly from your terminal or Application Menu:
+```bash
+vllm-manager
 ```
 
 ---
