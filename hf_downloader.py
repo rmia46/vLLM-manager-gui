@@ -135,59 +135,94 @@ class HFDownloadWorker(QThread):
         self.repo_id = repo_id
         self.hf_cache_dir = hf_cache_dir
         self.process = None
+        self.is_cancelled = False
 
     def run(self):
         self.log_signal.emit(f"Starting download for '{self.repo_id}' into '{self.hf_cache_dir}'...\n")
         self.progress_signal.emit(0, f"Downloading {self.repo_id}...")
 
-        # Run hf download CLI via python subprocess to capture live output lines
-        cmd = [
-            sys.executable, "-c",
-            f"from huggingface_hub import snapshot_download; snapshot_download(repo_id='{self.repo_id}', cache_dir='{self.hf_cache_dir}', resume_download=True)"
-        ]
+        python_script = (
+            "import os, sys\n"
+            "os.environ['PYTHONUNBUFFERED'] = '1'\n"
+            "from huggingface_hub import snapshot_download\n"
+            "try:\n"
+            f"    snapshot_download(repo_id='{self.repo_id}', cache_dir='{self.hf_cache_dir}')\n"
+            "    print('SUCCESS_HF_DOWNLOAD')\n"
+            "except Exception as e:\n"
+            "    print('ERROR_HF_DOWNLOAD:', str(e), file=sys.stderr)\n"
+            "    sys.exit(1)\n"
+        )
+
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
 
         try:
             self.process = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+                [sys.executable, "-u", "-c", python_script],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                env=env
             )
 
-            percent = 5
-            for line in iter(self.process.stdout.readline, ''):
-                if not line:
+            # Read stderr line-by-line where tqdm progress bars (speed, ETA, MB/s, %) are emitted by huggingface_hub
+            percent = 0
+            speed_str = "Downloading..."
+
+            for line in iter(self.process.stderr.readline, ''):
+                if not line or self.is_cancelled:
                     break
+                
                 self.log_signal.emit(line)
 
-                # Parse percentage indicators from hf download logs if present
-                match = re.search(r'(\d+)%', line)
-                if match:
-                    p = int(match.group(1))
-                    percent = max(percent, p)
-                    self.progress_signal.emit(percent, f"Downloading {self.repo_id} ({percent}%)")
-                else:
-                    # Increment progress indicator gradually
-                    percent = min(percent + 2, 90)
-                    self.progress_signal.emit(percent, f"Downloading {self.repo_id}...")
+                # Parse tqdm progress line: e.g. " 45%|████▌     | 1.2G/2.5G [00:12<00:15, 85.2MB/s]"
+                # Match percentage
+                p_match = re.search(r'(\d+)%', line)
+                if p_match:
+                    percent = int(p_match.group(1))
 
-            self.process.stdout.close()
+                # Match tqdm speed & downloaded size info [00:12<00:15, 85.2MB/s] or 1.2G/2.5G
+                size_match = re.search(r'([\d\.]+[kMG]B?/s|[\d\.]+[kMG]B?/s)', line)
+                ratio_match = re.search(r'([\d\.]+[kMGT]?B/|\d+/\d+)', line)
+                
+                info_parts = []
+                if ratio_match:
+                    info_parts.append(ratio_match.group(0))
+                if size_match:
+                    info_parts.append(size_match.group(0))
+
+                if info_parts:
+                    speed_str = " | ".join(info_parts)
+
+                status_msg = f"Downloading {self.repo_id} ({percent}%) [{speed_str}]"
+                self.progress_signal.emit(percent, status_msg)
+
+            self.process.stderr.close()
             return_code = self.process.wait()
 
-            if return_code == 0:
+            if self.is_cancelled:
+                self.progress_signal.emit(0, "Download Cancelled")
+                self.log_signal.emit(f"\n[CANCEL] Download cancelled by user for {self.repo_id}.\n")
+                self.finished_signal.emit(False, "Cancelled by user")
+            elif return_code == 0:
                 self.progress_signal.emit(100, "Download Complete!")
-                self.log_signal.emit(f"Successfully downloaded {self.repo_id}!\n")
+                self.log_signal.emit(f"\nSuccessfully downloaded {self.repo_id}!\n")
                 self.finished_signal.emit(True, self.repo_id)
             else:
-                self.progress_signal.emit(0, "Download Cancelled / Failed")
-                self.log_signal.emit(f"Download stopped or failed for {self.repo_id}.\n")
+                self.progress_signal.emit(0, "Download Failed")
+                self.log_signal.emit(f"\nDownload failed for {self.repo_id}.\n")
                 self.finished_signal.emit(False, f"Process exited with code {return_code}")
         except Exception as e:
             self.log_signal.emit(f"Error downloading {self.repo_id}: {str(e)}\n")
             self.finished_signal.emit(False, str(e))
 
     def cancel_download(self):
+        self.is_cancelled = True
         if self.process and self.process.poll() is None:
-            self.log_signal.emit("\n[CANCEL] Cancelling download process...\n")
+            self.log_signal.emit("\n[CANCEL] Terminating download process...\n")
             self.process.terminate()
             try:
-                self.process.wait(timeout=3)
+                self.process.wait(timeout=2)
             except Exception:
                 self.process.kill()
