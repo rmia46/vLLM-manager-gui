@@ -466,12 +466,30 @@ class VLLMManagerGUI(QMainWindow):
 
         dl_row = QHBoxLayout()
         dl_row.setSpacing(10)
+        
         self.dl_btn = QPushButton("  Download Selected Model to Cache")
         self.dl_btn.setIcon(qta.icon('fa5s.download', color='#ffffff'))
         self.dl_btn.setObjectName("primaryBtn")
         self.dl_btn.clicked.connect(self.download_selected_model)
-        dl_row.addWidget(self.dl_btn)
+        dl_row.addWidget(self.dl_btn, 1)
+
+        self.cancel_dl_btn = QPushButton("  Cancel Download")
+        self.cancel_dl_btn.setIcon(qta.icon('fa5s.times-circle', color='#ffffff'))
+        self.cancel_dl_btn.setObjectName("stopBtn")
+        self.cancel_dl_btn.setEnabled(False)
+        self.cancel_dl_btn.clicked.connect(self.cancel_download)
+        dl_row.addWidget(self.cancel_dl_btn)
+
         browser_layout.addLayout(dl_row)
+
+        self.dl_status_lbl = QLabel("Download Status: Idle")
+        self.dl_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ac8888;")
+        browser_layout.addWidget(self.dl_status_lbl)
+
+        self.dl_progress_bar = QProgressBar()
+        self.dl_progress_bar.setValue(0)
+        self.dl_progress_bar.setVisible(False)
+        browser_layout.addWidget(self.dl_progress_bar)
 
         self.stack.addWidget(browser_view)
 
@@ -700,18 +718,37 @@ class VLLMManagerGUI(QMainWindow):
         cache_dir = self.cache_dir_edit.text().strip()
 
         self.dl_btn.setEnabled(False)
+        self.cancel_dl_btn.setEnabled(True)
+        self.dl_progress_bar.setVisible(True)
+        self.dl_progress_bar.setValue(0)
+        self.dl_status_lbl.setText(f"Download Status: Starting download for {repo_id}...")
+
         self.download_worker = HFDownloadWorker(repo_id, cache_dir)
         self.download_worker.log_signal.connect(self.append_log)
+        self.download_worker.progress_signal.connect(self.on_download_progress)
         self.download_worker.finished_signal.connect(self.on_download_finished)
         self.download_worker.start()
 
+    def on_download_progress(self, percent, text):
+        self.dl_progress_bar.setValue(percent)
+        self.dl_status_lbl.setText(f"Download Status: {text}")
+
+    def cancel_download(self):
+        if self.download_worker:
+            self.download_worker.cancel_download()
+            self.cancel_dl_btn.setEnabled(False)
+
     def on_download_finished(self, success, model_or_err):
         self.dl_btn.setEnabled(True)
+        self.cancel_dl_btn.setEnabled(False)
         if success:
+            self.dl_progress_bar.setValue(100)
+            self.dl_status_lbl.setText("Download Status: Download Completed Successfully!")
             QMessageBox.information(self, "Download Complete", f"Model '{model_or_err}' successfully downloaded into cache!")
             self.refresh_models()
         else:
-            QMessageBox.critical(self, "Download Failed", f"Failed to download: {model_or_err}")
+            self.dl_status_lbl.setText("Download Status: Stopped / Error")
+            QMessageBox.critical(self, "Download Result", f"Status: {model_or_err}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

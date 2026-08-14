@@ -1,4 +1,7 @@
 import re
+import os
+import sys
+import subprocess
 from PySide6.QtCore import QThread, Signal
 from huggingface_hub import HfApi, snapshot_download
 
@@ -19,27 +22,25 @@ def estimate_model_download_size(model_info):
     """
     model_id = model_info.modelId
     
-    # 1. If HfApi returned model.siblings (file info with size)
     if hasattr(model_info, 'siblings') and model_info.siblings:
         total_bytes = sum(getattr(f, 'size', 0) or 0 for f in model_info.siblings)
         if total_bytes > 0:
             size_gb = total_bytes / (1024 ** 3)
             return round(size_gb, 1)
 
-    # 2. Heuristic fallback based on quant/format in repo ID
     params_b = parse_model_params(model_id)
     if params_b is None:
         return None
 
     model_id_upper = model_id.upper()
     if "GGUF" in model_id_upper or "Q4" in model_id_upper:
-        multiplier = 0.6  # ~4-bit quantization (~0.6 GB per B params)
+        multiplier = 0.6
     elif "Q8" in model_id_upper:
-        multiplier = 1.05 # ~8-bit quantization (~1.05 GB per B params)
+        multiplier = 1.05
     elif "AWQ" in model_id_upper or "GPTQ" in model_id_upper or "FP8" in model_id_upper:
-        multiplier = 0.7  # ~4-8 bit GPU quants
+        multiplier = 0.7
     else:
-        multiplier = 2.0  # FP16 / BF16 default (~2.0 GB per B params)
+        multiplier = 2.0
 
     return round(params_b * multiplier, 1)
 
@@ -59,7 +60,6 @@ class HFBrowserWorker(QThread):
         try:
             api = HfApi()
             
-            # Build search string
             search_terms = []
             if self.family != "All":
                 search_terms.append(self.family)
@@ -77,7 +77,6 @@ class HFBrowserWorker(QThread):
                 
             combined_search = " ".join(search_terms) if search_terms else None
 
-            # Determine sorting key for API call (huggingface_hub >= 1.0)
             api_sort = "downloads"
             if self.sort_by == "Likes":
                 api_sort = "likes"
@@ -103,7 +102,6 @@ class HFBrowserWorker(QThread):
                 params_b = parse_model_params(m.modelId)
                 size_gb = estimate_model_download_size(m)
                 
-                # Check VRAM / Size filter if set
                 if self.max_vram is not None and size_gb is not None:
                     if size_gb > self.max_vram:
                         continue
@@ -118,7 +116,6 @@ class HFBrowserWorker(QThread):
                     "pipeline_tag": getattr(m, "pipeline_tag", "text-generation")
                 })
 
-            # Additional in-memory sort if requested by Model Size / Download Size
             if self.sort_by == "Model Size (Asc)":
                 res.sort(key=lambda x: x["vram_val"])
             elif self.sort_by == "Model Size (Desc)":
@@ -130,23 +127,67 @@ class HFBrowserWorker(QThread):
 
 class HFDownloadWorker(QThread):
     log_signal = Signal(str)
+    progress_signal = Signal(int, str)  # percent, status_text
     finished_signal = Signal(bool, str)
 
     def __init__(self, repo_id, hf_cache_dir):
         super().__init__()
         self.repo_id = repo_id
         self.hf_cache_dir = hf_cache_dir
+        self.process = None
 
     def run(self):
         self.log_signal.emit(f"Starting download for '{self.repo_id}' into '{self.hf_cache_dir}'...\n")
+        self.progress_signal.emit(0, f"Downloading {self.repo_id}...")
+
+        # Run hf download CLI via python subprocess to capture live output lines
+        cmd = [
+            sys.executable, "-c",
+            f"from huggingface_hub import snapshot_download; snapshot_download(repo_id='{self.repo_id}', cache_dir='{self.hf_cache_dir}', resume_download=True)"
+        ]
+
         try:
-            snapshot_download(
-                repo_id=self.repo_id,
-                cache_dir=self.hf_cache_dir,
-                resume_download=True
+            self.process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
             )
-            self.log_signal.emit(f"Successfully downloaded {self.repo_id}!\n")
-            self.finished_signal.emit(True, self.repo_id)
+
+            percent = 5
+            for line in iter(self.process.stdout.readline, ''):
+                if not line:
+                    break
+                self.log_signal.emit(line)
+
+                # Parse percentage indicators from hf download logs if present
+                match = re.search(r'(\d+)%', line)
+                if match:
+                    p = int(match.group(1))
+                    percent = max(percent, p)
+                    self.progress_signal.emit(percent, f"Downloading {self.repo_id} ({percent}%)")
+                else:
+                    # Increment progress indicator gradually
+                    percent = min(percent + 2, 90)
+                    self.progress_signal.emit(percent, f"Downloading {self.repo_id}...")
+
+            self.process.stdout.close()
+            return_code = self.process.wait()
+
+            if return_code == 0:
+                self.progress_signal.emit(100, "Download Complete!")
+                self.log_signal.emit(f"Successfully downloaded {self.repo_id}!\n")
+                self.finished_signal.emit(True, self.repo_id)
+            else:
+                self.progress_signal.emit(0, "Download Cancelled / Failed")
+                self.log_signal.emit(f"Download stopped or failed for {self.repo_id}.\n")
+                self.finished_signal.emit(False, f"Process exited with code {return_code}")
         except Exception as e:
             self.log_signal.emit(f"Error downloading {self.repo_id}: {str(e)}\n")
             self.finished_signal.emit(False, str(e))
+
+    def cancel_download(self):
+        if self.process and self.process.poll() is None:
+            self.log_signal.emit("\n[CANCEL] Cancelling download process...\n")
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=3)
+            except Exception:
+                self.process.kill()
