@@ -129,7 +129,7 @@ class CustomTqdmHook:
         self.log_signal = log_signal
         self.progress_signal = progress_signal
         self.repo_id = repo_id
-        self.is_cancelled = False
+        self.last_percent = 0
 
     def write(self, s):
         if not s:
@@ -140,10 +140,11 @@ class CustomTqdmHook:
 
             # Parse tqdm percentage: e.g. " 45%|████▌     | 1.2G/2.5G [00:12<00:15, 85.2MB/s]"
             p_match = re.search(r'(\d+)%', clean_str)
-            percent = int(p_match.group(1)) if p_match else 0
+            if p_match:
+                self.last_percent = int(p_match.group(1))
 
             # Parse file count ratio or size ratio + download speed
-            ratio_match = re.search(r'(\d+/\d+|[\d\.]+[kMGT]?B/[\d\.]+[kMGT]?B)', clean_str)
+            ratio_match = re.search(r'(\d+/\d+|[\d\.]+[kMGT]?B?/[\d\.]+[kMGT]?B?)', clean_str)
             speed_match = re.search(r'([\d\.]+[kMGT]?B/s)', clean_str)
 
             info_parts = []
@@ -153,8 +154,8 @@ class CustomTqdmHook:
                 info_parts.append(speed_match.group(0))
 
             speed_str = " | ".join(info_parts) if info_parts else "Downloading files..."
-            status_msg = f"Downloading {self.repo_id} ({percent}%) [{speed_str}]"
-            self.progress_signal.emit(percent, status_msg)
+            status_msg = f"Downloading {self.repo_id} ({self.last_percent}%) [{speed_str}]"
+            self.progress_signal.emit(self.last_percent, status_msg)
 
     def flush(self):
         pass
@@ -174,7 +175,6 @@ class HFDownloadWorker(QThread):
         self.log_signal.emit(f"Starting download for '{self.repo_id}' into '{self.hf_cache_dir}'...\n")
         self.progress_signal.emit(0, f"Downloading {self.repo_id}...")
 
-        # Hook sys.stderr to catch tqdm output directly inside PySide thread
         old_stderr = sys.stderr
         hook = CustomTqdmHook(self.log_signal, self.progress_signal, self.repo_id)
 
