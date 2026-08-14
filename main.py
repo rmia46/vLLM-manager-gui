@@ -10,10 +10,11 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QComboBox, QCheckBox, QDoubleSpinBox, QSpinBox,
     QPushButton, QTextEdit, QGroupBox, QSplitter, QMessageBox,
     QFileDialog, QStackedWidget, QDialog, QTableWidget, QTableWidgetItem, QHeaderView,
-    QFrame, QGridLayout, QProgressBar
+    QFrame, QGridLayout, QProgressBar, QInputDialog
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QIcon, QPixmap
+from huggingface_hub import HfApi
 
 from model_scanner import get_cached_models, get_cached_models_details, delete_cached_model, DEFAULT_HF_CACHE_DIR
 from docker_checker import check_open_webui_status, start_open_webui, stop_open_webui
@@ -25,10 +26,6 @@ from stitch_theme import STITCH_DARK_STYLESHEET
 VENV_VLLM = "/data/rspace/codespace/libs/python_env/3.12/.venv/bin/vllm"
 
 def get_gpu_info():
-    """
-    Returns (gpu_name, memory_used_mb, memory_total_mb, utilization_percent)
-    or None if nvidia-smi fails.
-    """
     try:
         res = subprocess.run(
             ["nvidia-smi", "--query-gpu=name,memory.used,memory.total,utilization.gpu", "--format=csv,noheader,nounits"],
@@ -299,7 +296,6 @@ class VLLMManagerGUI(QMainWindow):
         env_grid = QGridLayout()
         env_grid.setSpacing(10)
 
-        # Dedicated GPU VRAM Gauge
         gpu_col = QVBoxLayout()
         gpu_col.setSpacing(2)
         self.gpu_name_label = QLabel("GPU VRAM: DETECTING...")
@@ -310,7 +306,6 @@ class VLLMManagerGUI(QMainWindow):
         gpu_col.addWidget(self.gpu_bar)
         env_grid.addLayout(gpu_col, 0, 0)
 
-        # GPU Compute Core Util Gauge
         gpu_util_col = QVBoxLayout()
         gpu_util_col.setSpacing(2)
         self.gpu_util_label = QLabel("GPU CORE UTILIZATION: 0%")
@@ -321,7 +316,6 @@ class VLLMManagerGUI(QMainWindow):
         gpu_util_col.addWidget(self.gpu_util_bar)
         env_grid.addLayout(gpu_util_col, 0, 1)
 
-        # CPU Usage Bar
         cpu_col = QVBoxLayout()
         cpu_col.setSpacing(2)
         self.cpu_label = QLabel("CPU USAGE: 0%")
@@ -332,7 +326,6 @@ class VLLMManagerGUI(QMainWindow):
         cpu_col.addWidget(self.cpu_bar)
         env_grid.addLayout(cpu_col, 1, 0)
 
-        # RAM Usage Bar
         ram_col = QVBoxLayout()
         ram_col.setSpacing(2)
         self.ram_label = QLabel("RAM USAGE: 0 GB / 0 GB")
@@ -343,7 +336,6 @@ class VLLMManagerGUI(QMainWindow):
         ram_col.addWidget(self.ram_bar)
         env_grid.addLayout(ram_col, 1, 1)
 
-        # Environment Readiness Status Badges
         vllm_installed = os.path.exists(VENV_VLLM)
         self.vllm_env_lbl = QLabel(f"vLLM Engine: {' INSTALLED' if vllm_installed else ' NOT FOUND'}")
         self.vllm_env_lbl.setStyleSheet(f"font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: {'#ffb3b3' if vllm_installed else '#ffb4ab'};")
@@ -367,7 +359,6 @@ class VLLMManagerGUI(QMainWindow):
         grid = QGridLayout()
         grid.setSpacing(8)
 
-        # Row 0: Port & Quantization
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1024, 65535)
         self.port_spin.setValue(8000)
@@ -380,7 +371,6 @@ class VLLMManagerGUI(QMainWindow):
         grid.addWidget(QLabel("Quantization:"), 0, 1)
         grid.addWidget(self.quant_combo, 1, 1)
 
-        # Row 2: GPU Memory & Max Length
         self.gpu_spin = QDoubleSpinBox()
         self.gpu_spin.setRange(0.10, 1.00)
         self.gpu_spin.setSingleStep(0.05)
@@ -396,7 +386,6 @@ class VLLMManagerGUI(QMainWindow):
         grid.addWidget(QLabel("Max Model Length:"), 2, 1)
         grid.addWidget(self.max_len_spin, 3, 1)
 
-        # Row 4: Auto Tool & Parser
         self.tool_choice_cb = QCheckBox("Enable Auto Tool Choice")
         self.tool_choice_cb.setChecked(True)
 
@@ -408,7 +397,6 @@ class VLLMManagerGUI(QMainWindow):
         grid.addWidget(QLabel("Tool Parser:"), 4, 1)
         grid.addWidget(self.tool_parser_combo, 5, 1)
 
-        # Row 6: Extra Flags
         extra_container = QWidget()
         e_layout = QHBoxLayout(extra_container)
         e_layout.setContentsMargins(0, 0, 0, 0)
@@ -576,7 +564,6 @@ class VLLMManagerGUI(QMainWindow):
         right_layout.setContentsMargins(12, 16, 12, 16)
         right_layout.setSpacing(10)
 
-        # Solid Card 1: Open WebUI Integration
         webui_card = SolidCard("Open WebUI Integration")
         self.docker_status_lbl = QLabel("Container Status: Checking...")
         self.docker_status_lbl.setWordWrap(True)
@@ -596,7 +583,6 @@ class VLLMManagerGUI(QMainWindow):
 
         right_layout.addWidget(webui_card)
 
-        # Solid Card 2: Dedicated Full-Height Console Log Stream
         log_card = SolidCard("Live Log Stream")
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
@@ -614,33 +600,36 @@ class VLLMManagerGUI(QMainWindow):
         self.refresh_storage_manager()
 
     def update_system_stats(self):
-        cpu = psutil.cpu_percent()
-        self.cpu_bar.setValue(int(cpu))
-        self.cpu_label.setText(f"CPU USAGE: {cpu:.1f}%")
+        try:
+            cpu = psutil.cpu_percent()
+            self.cpu_bar.setValue(int(cpu))
+            self.cpu_label.setText(f"CPU USAGE: {cpu:.1f}%")
 
-        ram = psutil.virtual_memory()
-        ram_used_gb = ram.used / (1024 ** 3)
-        ram_total_gb = ram.total / (1024 ** 3)
-        self.ram_bar.setValue(int(ram.percent))
-        self.ram_label.setText(f"RAM USAGE: {ram_used_gb:.1f} GB / {ram_total_gb:.1f} GB")
+            ram = psutil.virtual_memory()
+            ram_used_gb = ram.used / (1024 ** 3)
+            ram_total_gb = ram.total / (1024 ** 3)
+            self.ram_bar.setValue(int(ram.percent))
+            self.ram_label.setText(f"RAM USAGE: {ram_used_gb:.1f} GB / {ram_total_gb:.1f} GB")
 
-        gpu_info = get_gpu_info()
-        if gpu_info:
-            gpu_name, used_mb, total_mb, util_pct = gpu_info
-            used_gb = used_mb / 1024.0
-            total_gb = total_mb / 1024.0
-            vram_pct = (used_mb / total_mb) * 100.0 if total_mb > 0 else 0
+            gpu_info = get_gpu_info()
+            if gpu_info:
+                gpu_name, used_mb, total_mb, util_pct = gpu_info
+                used_gb = used_mb / 1024.0
+                total_gb = total_mb / 1024.0
+                vram_pct = (used_mb / total_mb) * 100.0 if total_mb > 0 else 0
 
-            self.gpu_name_label.setText(f"GPU VRAM ({gpu_name}): {used_gb:.2f} GB / {total_gb:.2f} GB")
-            self.gpu_bar.setValue(int(vram_pct))
+                self.gpu_name_label.setText(f"GPU VRAM ({gpu_name}): {used_gb:.2f} GB / {total_gb:.2f} GB")
+                self.gpu_bar.setValue(int(vram_pct))
 
-            self.gpu_util_label.setText(f"GPU CORE UTILIZATION: {util_pct:.0f}%")
-            self.gpu_util_bar.setValue(int(util_pct))
-        else:
-            self.gpu_name_label.setText("GPU VRAM: NO NVIDIA GPU DETECTED")
-            self.gpu_bar.setValue(0)
-            self.gpu_util_label.setText("GPU CORE UTILIZATION: N/A")
-            self.gpu_util_bar.setValue(0)
+                self.gpu_util_label.setText(f"GPU CORE UTILIZATION: {util_pct:.0f}%")
+                self.gpu_util_bar.setValue(int(util_pct))
+            else:
+                self.gpu_name_label.setText("GPU VRAM: NO NVIDIA GPU DETECTED")
+                self.gpu_bar.setValue(0)
+                self.gpu_util_label.setText("GPU CORE UTILIZATION: N/A")
+                self.gpu_util_bar.setValue(0)
+        except Exception:
+            pass
 
     def switch_tab(self, index):
         self.stack.setCurrentIndex(index)
@@ -700,7 +689,6 @@ class VLLMManagerGUI(QMainWindow):
             self.meta_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 4px; padding: 2px 8px; max-height: 14px;")
         else:
             from model_scanner import detect_model_family
-            import re
             family_str = detect_model_family(model_name)
             p_match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_name)
             params_str = f"{p_match.group(1)}B" if p_match else "Unknown"
@@ -816,7 +804,7 @@ class VLLMManagerGUI(QMainWindow):
         if status == "RUNNING":
             self.vllm_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-weight: bold; font-size: 11px; color: #ffb3b3;")
         elif status in ["STOPPED", "IDLE", "ERROR"]:
-            self.vllm_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-weight: bold; font-size: 11px; color: #ffb4ab;")
+            self.vllm_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 11px; color: #ffb4ab;")
             self.start_vllm_btn.setEnabled(True)
             self.stop_vllm_btn.setEnabled(False)
 
@@ -882,13 +870,35 @@ class VLLMManagerGUI(QMainWindow):
         repo_id = self.hf_results_table.item(selected_rows[0].row(), 0).text()
         cache_dir = self.cache_dir_edit.text().strip()
 
+        # If model repository contains GGUF files, prompt user to select specific file or download repo
+        selected_filename = None
+        if "GGUF" in repo_id.upper():
+            try:
+                api = HfApi()
+                info = api.model_info(repo_id, files_metadata=True)
+                gguf_files = [f.rfilename for f in info.siblings if f.rfilename.endswith(".gguf")]
+                if gguf_files:
+                    item, ok = QInputDialog.getItem(
+                        self,
+                        "Select GGUF Quant File",
+                        f"Found {len(gguf_files)} GGUF quant file(s) in repository '{repo_id}'.\nSelect specific file to download (or Cancel for full repo):",
+                        gguf_files,
+                        0,
+                        False
+                    )
+                    if ok and item:
+                        selected_filename = item
+            except Exception as e:
+                self.append_log(f"Warning: Could not fetch GGUF file list: {str(e)}\n")
+
         self.dl_btn.setEnabled(False)
         self.cancel_dl_btn.setEnabled(True)
         self.dl_progress_bar.setVisible(True)
         self.dl_progress_bar.setValue(0)
-        self.dl_status_lbl.setText(f"Download Status: Starting download for {repo_id}...")
+        target_name = selected_filename or repo_id
+        self.dl_status_lbl.setText(f"Download Status: Starting download for {target_name}...")
 
-        self.download_worker = HFDownloadWorker(repo_id, cache_dir)
+        self.download_worker = HFDownloadWorker(repo_id, cache_dir, selected_filename=selected_filename)
         self.download_worker.log_signal.connect(self.append_log)
         self.download_worker.progress_signal.connect(self.on_download_progress)
         self.download_worker.finished_signal.connect(self.on_download_finished)
@@ -913,6 +923,7 @@ class VLLMManagerGUI(QMainWindow):
             self.refresh_models()
             self.refresh_storage_manager()
         else:
+            self.dl_progress_bar.setValue(0)
             self.dl_status_lbl.setText("Download Status: Stopped / Error")
             QMessageBox.critical(self, "Download Result", f"Status: {model_or_err}")
 
