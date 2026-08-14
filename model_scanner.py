@@ -23,42 +23,53 @@ def detect_model_family(model_id):
 
 def get_cached_models_details(cache_dir_path=DEFAULT_HF_CACHE_DIR):
     """
-    Scans HF cache directory and returns detailed info:
-    list of dicts containing: id, folder_name, folder_path, size_gb, family, params_b
+    Scans HF cache directory (checking both base directory and hub/ subfolder)
+    and returns detailed info: list of dicts containing: id, folder_name, folder_path, size_gb, family, params
     """
     results = []
     path = Path(cache_dir_path)
-    hub_path = path / "hub" if (path / "hub").exists() else path
 
-    if not hub_path.exists():
-        return results
+    # Check both path directly and path / "hub"
+    search_dirs = [path]
+    if (path / "hub").exists():
+        search_dirs.append(path / "hub")
 
-    for folder in hub_path.iterdir():
-        if folder.is_dir() and folder.name.startswith("models--"):
-            parts = folder.name[len("models--"):].split("--")
-            if len(parts) >= 2:
-                model_id = f"{parts[0]}/{'--'.join(parts[1:])}"
-            elif len(parts) == 1:
-                model_id = parts[0]
-            else:
-                model_id = folder.name
+    seen_folders = set()
 
-            # Calculate total folder size
-            total_bytes = sum(f.stat().st_size for f in folder.glob('**/*') if f.is_file())
-            size_gb = round(total_bytes / (1024 ** 3), 2)
-            family = detect_model_family(model_id)
+    for s_dir in search_dirs:
+        if not s_dir.exists():
+            continue
 
-            match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_id)
-            params = f"{match.group(1)}B" if match else "Unknown"
+        for folder in s_dir.iterdir():
+            if folder.is_dir() and folder.name.startswith("models--"):
+                if str(folder) in seen_folders:
+                    continue
+                seen_folders.add(str(folder))
 
-            results.append({
-                "id": model_id,
-                "folder_name": folder.name,
-                "folder_path": str(folder),
-                "size_gb": size_gb,
-                "family": family,
-                "params": params
-            })
+                parts = folder.name[len("models--"):].split("--")
+                if len(parts) >= 2:
+                    model_id = f"{parts[0]}/{'--'.join(parts[1:])}"
+                elif len(parts) == 1:
+                    model_id = parts[0]
+                else:
+                    model_id = folder.name
+
+                # Calculate total folder size
+                total_bytes = sum(f.stat().st_size for f in folder.glob('**/*') if f.is_file())
+                size_gb = round(total_bytes / (1024 ** 3), 2)
+                family = detect_model_family(model_id)
+
+                match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_id)
+                params = f"{match.group(1)}B" if match else "Unknown"
+
+                results.append({
+                    "id": model_id,
+                    "folder_name": folder.name,
+                    "folder_path": str(folder),
+                    "size_gb": size_gb,
+                    "family": family,
+                    "params": params
+                })
     return sorted(results, key=lambda x: x["id"])
 
 def get_cached_models(cache_dir_path=DEFAULT_HF_CACHE_DIR):
