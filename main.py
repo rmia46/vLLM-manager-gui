@@ -246,6 +246,11 @@ class VLLMManagerGUI(QMainWindow):
         self.model_combo.setEditable(True)
         self.model_combo.currentIndexChanged.connect(self.update_selected_model_info)
         self.model_combo.editTextChanged.connect(self.update_selected_model_info)
+
+        # Selected Model Details Info Bar
+        self.selected_model_info_lbl = QLabel("Selected Model Info: Loading...")
+        self.selected_model_info_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 11px; font-weight: bold; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 6px; padding: 5px 10px;")
+
         self.refresh_models()
         hero_top.addWidget(self.model_combo, 1)
 
@@ -270,10 +275,6 @@ class VLLMManagerGUI(QMainWindow):
         hero_top.addWidget(self.stop_vllm_btn)
 
         hero_card.body_layout.addLayout(hero_top)
-
-        # Selected Model Details Info Bar
-        self.selected_model_info_lbl = QLabel("Selected Model Info: Loading...")
-        self.selected_model_info_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 11px; font-weight: bold; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 6px; padding: 5px 10px;")
         hero_card.body_layout.addWidget(self.selected_model_info_lbl)
 
         # System & Dedicated GPU Gauges Grid
