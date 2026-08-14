@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QIcon, QPixmap
 
-from model_scanner import get_cached_models, DEFAULT_HF_CACHE_DIR
+from model_scanner import get_cached_models, get_cached_models_details, delete_cached_model, DEFAULT_HF_CACHE_DIR
 from docker_checker import check_open_webui_status, start_open_webui, stop_open_webui
 from vllm_runner import VLLMProcessWorker
 from hf_downloader import HFBrowserWorker, HFDownloadWorker
@@ -50,7 +50,6 @@ class SolidCard(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Uniform Header Bar
         self.header = QLabel()
         self.header.setObjectName("cardHeader")
         if icon_name:
@@ -60,7 +59,6 @@ class SolidCard(QFrame):
         
         self.layout.addWidget(self.header)
 
-        # Content Layer
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
         self.body_layout.setContentsMargins(12, 12, 12, 12)
@@ -169,6 +167,13 @@ class VLLMManagerGUI(QMainWindow):
         self.nav_browser_btn.setCheckable(True)
         self.nav_browser_btn.clicked.connect(lambda: self.switch_tab(1))
         sidebar_layout.addWidget(self.nav_browser_btn)
+
+        self.nav_manage_btn = QPushButton("  Local Storage Manager")
+        self.nav_manage_btn.setIcon(qta.icon('fa5s.hdd', color='#ac8888'))
+        self.nav_manage_btn.setObjectName("navBtn")
+        self.nav_manage_btn.setCheckable(True)
+        self.nav_manage_btn.clicked.connect(lambda: self.switch_tab(2))
+        sidebar_layout.addWidget(self.nav_manage_btn)
 
         sidebar_layout.addStretch()
 
@@ -493,6 +498,45 @@ class VLLMManagerGUI(QMainWindow):
 
         self.stack.addWidget(browser_view)
 
+        # VIEW 3: Local Storage Model Manager
+        manage_view = QWidget()
+        manage_layout = QVBoxLayout(manage_view)
+        manage_layout.setContentsMargins(0, 0, 0, 0)
+        manage_layout.setSpacing(10)
+
+        manage_card = SolidCard("Local Storage Model Manager")
+        
+        m_top = QHBoxLayout()
+        m_top.setSpacing(10)
+
+        self.storage_info_lbl = QLabel("Storage Usage: Calculating...")
+        self.storage_info_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-weight: bold; font-size: 11px; color: #ffb3b3;")
+        m_top.addWidget(self.storage_info_lbl, 1)
+
+        refresh_storage_btn = QPushButton("  Refresh Storage")
+        refresh_storage_btn.setIcon(qta.icon('fa5s.sync-alt', color='#ffb3b3'))
+        refresh_storage_btn.setObjectName("secondaryBtn")
+        refresh_storage_btn.clicked.connect(self.refresh_storage_manager)
+        m_top.addWidget(refresh_storage_btn)
+
+        delete_selected_btn = QPushButton("  Delete Selected Model")
+        delete_selected_btn.setIcon(qta.icon('fa5s.trash-alt', color='#ffffff'))
+        delete_selected_btn.setObjectName("stopBtn")
+        delete_selected_btn.clicked.connect(self.delete_selected_local_model)
+        m_top.addWidget(delete_selected_btn)
+
+        manage_card.body_layout.addLayout(m_top)
+        manage_layout.addWidget(manage_card)
+
+        self.local_models_table = QTableWidget(0, 3)
+        self.local_models_table.setHorizontalHeaderLabels(["MODEL ID", "DISK STORAGE SIZE", "CACHE DIRECTORY PATH"])
+        self.local_models_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.local_models_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.local_models_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        manage_layout.addWidget(self.local_models_table)
+
+        self.stack.addWidget(manage_view)
+
         content_layout.addWidget(self.stack)
         main_layout.addWidget(content_area, 1)
 
@@ -541,8 +585,9 @@ class VLLMManagerGUI(QMainWindow):
 
         main_layout.addWidget(right_dock)
 
+        self.refresh_storage_manager()
+
     def update_system_stats(self):
-        # Update CPU & RAM
         cpu = psutil.cpu_percent()
         self.cpu_bar.setValue(int(cpu))
         self.cpu_label.setText(f"CPU USAGE: {cpu:.1f}%")
@@ -553,7 +598,6 @@ class VLLMManagerGUI(QMainWindow):
         self.ram_bar.setValue(int(ram.percent))
         self.ram_label.setText(f"RAM USAGE: {ram_used_gb:.1f} GB / {ram_total_gb:.1f} GB")
 
-        # Update Dedicated GPU Stats
         gpu_info = get_gpu_info()
         if gpu_info:
             gpu_name, used_mb, total_mb, util_pct = gpu_info
@@ -576,9 +620,14 @@ class VLLMManagerGUI(QMainWindow):
         self.stack.setCurrentIndex(index)
         self.nav_server_btn.setChecked(index == 0)
         self.nav_browser_btn.setChecked(index == 1)
+        self.nav_manage_btn.setChecked(index == 2)
 
         self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ffb3b3' if index == 0 else '#ac8888'))
         self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 1 else '#ac8888'))
+        self.nav_manage_btn.setIcon(qta.icon('fa5s.hdd', color='#ffb3b3' if index == 2 else '#ac8888'))
+
+        if index == 2:
+            self.refresh_storage_manager()
 
     def select_cache_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select HF Cache Directory", self.current_cache_dir)
@@ -586,6 +635,7 @@ class VLLMManagerGUI(QMainWindow):
             self.current_cache_dir = dir_path
             self.cache_dir_edit.setText(dir_path)
             self.refresh_models()
+            self.refresh_storage_manager()
 
     def refresh_models(self):
         curr = self.model_combo.currentText().strip()
@@ -598,6 +648,59 @@ class VLLMManagerGUI(QMainWindow):
                 self.model_combo.setCurrentText(curr)
         else:
             self.model_combo.addItem("Qwen/Qwen2.5-1.5B-Instruct")
+
+    def refresh_storage_manager(self):
+        cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir
+        details = get_cached_models_details(cache_path)
+
+        self.local_models_table.setRowCount(0)
+        total_disk_gb = 0.0
+
+        for d in details:
+            row = self.local_models_table.rowCount()
+            self.local_models_table.insertRow(row)
+
+            item_id = QTableWidgetItem(d["id"])
+            item_id.setData(Qt.UserRole, d["folder_path"])
+
+            item_size = QTableWidgetItem(f"{d['size_gb']:.2f} GB")
+            item_path = QTableWidgetItem(d["folder_path"])
+
+            self.local_models_table.setItem(row, 0, item_id)
+            self.local_models_table.setItem(row, 1, item_size)
+            self.local_models_table.setItem(row, 2, item_path)
+
+            total_disk_gb += d["size_gb"]
+
+        self.storage_info_lbl.setText(f"Total Local Model Storage: {total_disk_gb:.2f} GB ({len(details)} Models)")
+
+    def delete_selected_local_model(self):
+        selected_rows = self.local_models_table.selectedItems()
+        if not selected_rows:
+            QMessageBox.warning(self, "No Selection", "Please select a model row to delete.")
+            return
+
+        row = selected_rows[0].row()
+        model_id = self.local_models_table.item(row, 0).text()
+        folder_path = self.local_models_table.item(row, 0).data(Qt.UserRole)
+        size_str = self.local_models_table.item(row, 1).text()
+
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Model Deletion",
+            f"Are you sure you want to delete model '{model_id}' ({size_str}) from disk?\n\nFolder: {folder_path}",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if confirm == QMessageBox.Yes:
+            success = delete_cached_model(folder_path)
+            if success:
+                QMessageBox.information(self, "Model Deleted", f"Model '{model_id}' was successfully deleted.")
+                self.refresh_storage_manager()
+                self.refresh_models()
+            else:
+                QMessageBox.critical(self, "Deletion Failed", f"Failed to delete directory: {folder_path}")
 
     def show_flags_help(self):
         dialog = FlagsHelpDialog(self)
@@ -746,6 +849,7 @@ class VLLMManagerGUI(QMainWindow):
             self.dl_status_lbl.setText("Download Status: Download Completed Successfully!")
             QMessageBox.information(self, "Download Complete", f"Model '{model_or_err}' successfully downloaded into cache!")
             self.refresh_models()
+            self.refresh_storage_manager()
         else:
             self.dl_status_lbl.setText("Download Status: Stopped / Error")
             QMessageBox.critical(self, "Download Result", f"Status: {model_or_err}")
