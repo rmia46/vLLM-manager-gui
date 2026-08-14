@@ -5,15 +5,43 @@ from huggingface_hub import HfApi, snapshot_download
 def parse_model_params(model_id):
     """
     Parses parameter count from model ID string (e.g. 1.5B, 7B, 32B, 0.5B, 4b).
-    Returns (params_in_billions, estimated_vram_gb_fp16)
+    Returns params_in_billions or None.
     """
     match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_id)
     if match:
-        params_b = float(match.group(1))
-        # Rough estimate for FP16: ~2.2 GB VRAM per billion parameters + 2 GB overhead
-        vram_gb = round(params_b * 2.2 + 2.0, 1)
-        return params_b, vram_gb
-    return None, None
+        return float(match.group(1))
+    return None
+
+def estimate_model_download_size(model_info):
+    """
+    Estimates actual repo download / storage size in GB using model_info files if available,
+    or quantized precision heuristic (GGUF Q4 ~0.6GB/B, AWQ/GPTQ Q4 ~0.7GB/B, FP16 ~2.0GB/B).
+    """
+    model_id = model_info.modelId
+    
+    # 1. If HfApi returned model.siblings (file info with size)
+    if hasattr(model_info, 'siblings') and model_info.siblings:
+        total_bytes = sum(getattr(f, 'size', 0) or 0 for f in model_info.siblings)
+        if total_bytes > 0:
+            size_gb = total_bytes / (1024 ** 3)
+            return round(size_gb, 1)
+
+    # 2. Heuristic fallback based on quant/format in repo ID
+    params_b = parse_model_params(model_id)
+    if params_b is None:
+        return None
+
+    model_id_upper = model_id.upper()
+    if "GGUF" in model_id_upper or "Q4" in model_id_upper:
+        multiplier = 0.6  # ~4-bit quantization (~0.6 GB per B params)
+    elif "Q8" in model_id_upper:
+        multiplier = 1.05 # ~8-bit quantization (~1.05 GB per B params)
+    elif "AWQ" in model_id_upper or "GPTQ" in model_id_upper or "FP8" in model_id_upper:
+        multiplier = 0.7  # ~4-8 bit GPU quants
+    else:
+        multiplier = 2.0  # FP16 / BF16 default (~2.0 GB per B params)
+
+    return round(params_b * multiplier, 1)
 
 class HFBrowserWorker(QThread):
     results_ready = Signal(list)
@@ -63,8 +91,6 @@ class HFBrowserWorker(QThread):
             if combined_search:
                 kwargs["search"] = combined_search
 
-            # Only restrict pipeline_tag if user explicitly selected Vision or no specific user query is active.
-            # Community models (GGUF, unsloth, quants, fine-tunes) often omit pipeline_tag metadata.
             if self.filter_tag == "Vision":
                 kwargs["pipeline_tag"] = "image-text-to-text"
             elif not combined_search and self.family == "All" and self.filter_tag == "All":
@@ -74,11 +100,12 @@ class HFBrowserWorker(QThread):
 
             res = []
             for m in raw_models:
-                params_b, vram_gb = parse_model_params(m.modelId)
+                params_b = parse_model_params(m.modelId)
+                size_gb = estimate_model_download_size(m)
                 
-                # Check VRAM filter if set
-                if self.max_vram is not None and vram_gb is not None:
-                    if vram_gb > self.max_vram:
+                # Check VRAM / Size filter if set
+                if self.max_vram is not None and size_gb is not None:
+                    if size_gb > self.max_vram:
                         continue
 
                 res.append({
@@ -86,12 +113,12 @@ class HFBrowserWorker(QThread):
                     "downloads": getattr(m, "downloads", 0),
                     "likes": getattr(m, "likes", 0),
                     "params_b": f"{params_b:.1f}B" if params_b else "Unknown",
-                    "vram_gb": f"~{vram_gb:.1f} GB" if vram_gb else "Unknown",
-                    "vram_val": vram_gb or 999.0,
+                    "vram_gb": f"~{size_gb:.1f} GB" if size_gb else "Unknown",
+                    "vram_val": size_gb or 999.0,
                     "pipeline_tag": getattr(m, "pipeline_tag", "text-generation")
                 })
 
-            # Additional in-memory sort if requested by VRAM / Size
+            # Additional in-memory sort if requested by Model Size / Download Size
             if self.sort_by == "Model Size (Asc)":
                 res.sort(key=lambda x: x["vram_val"])
             elif self.sort_by == "Model Size (Desc)":

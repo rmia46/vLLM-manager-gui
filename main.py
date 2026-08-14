@@ -458,7 +458,7 @@ class VLLMManagerGUI(QMainWindow):
         browser_layout.addWidget(filter_card)
 
         self.hf_results_table = QTableWidget(0, 5)
-        self.hf_results_table.setHorizontalHeaderLabels(["MODEL REPO ID", "PARAMS", "EST. VRAM (FP16)", "DOWNLOADS", "LIKES"])
+        self.hf_results_table.setHorizontalHeaderLabels(["MODEL REPO ID", "PARAMS", "EST. DOWNLOAD SIZE", "DOWNLOADS", "LIKES"])
         self.hf_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.hf_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.hf_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
