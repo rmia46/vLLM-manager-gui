@@ -1,28 +1,28 @@
 import sys
-import subprocess
 import os
-import requests
+import subprocess
 from PySide6.QtCore import QThread, Signal
 
-VENV_PYTHON = "/data/rspace/codespace/libs/python_env/3.12/.venv/bin/python"
 VENV_VLLM = "/data/rspace/codespace/libs/python_env/3.12/.venv/bin/vllm"
-HF_CACHE = "/data/rspace/codespace/libs/hf_cache"
 
 class VLLMProcessWorker(QThread):
     log_received = Signal(str)
-    status_changed = Signal(str) # "IDLE", "STARTING", "RUNNING", "STOPPED", "ERROR"
+    status_changed = Signal(str)
 
-    def __init__(self, cmd_args, env=None):
+    def __init__(self, cmd_args, hf_cache_path):
         super().__init__()
         self.cmd_args = cmd_args
-        self.env = env or os.environ.copy()
-        self.env["HF_HOME"] = HF_CACHE
+        self.hf_cache_path = hf_cache_path
         self.process = None
         self._is_stopping = False
 
     def run(self):
         self.status_changed.emit("STARTING")
+        env = os.environ.copy()
+        env["HF_HOME"] = self.hf_cache_path
+
         cmd = [VENV_VLLM, "serve"] + self.cmd_args
+        self.log_received.emit(f"[vLLM Manager] HF_HOME={self.hf_cache_path}\n")
         self.log_received.emit(f"[vLLM Manager] Executing command: {' '.join(cmd)}\n")
 
         try:
@@ -31,7 +31,7 @@ class VLLMProcessWorker(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                env=self.env,
+                env=env,
                 bufsize=1
             )
 

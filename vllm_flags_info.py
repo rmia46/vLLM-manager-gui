@@ -1,0 +1,22 @@
+VLLM_FLAGS_HELP = {
+    "--trust-remote-code": "Trust remote code from Hugging Face repositories (required for non-standard architectures like Qwen/DeepSeek).",
+    "--dtype": "Data type for model weights: 'auto', 'half', 'float16', 'bfloat16', 'float', 'float32'.",
+    "--kv-cache-dtype": "Data type for KV cache: 'auto', 'fp8', 'fp8_e5m2', 'fp8_e4m3'. Saves GPU VRAM when using fp8.",
+    "--tensor-parallel-size": "Number of GPUs to use for tensor parallelism (e.g. 2, 4, 8).",
+    "--pipeline-parallel-size": "Number of pipeline stages for pipeline parallelism.",
+    "--cpu-offload-gb": "Amount of CPU memory (in GB) to offload KV cache or model weights.",
+    "--enforce-eager": "Always use eager-mode PyTorch. Disables CUDA graph execution to save VRAM or debug crashes.",
+    "--device": "Device type to run on: 'cuda', 'cpu', 'openvino', 'tpu', 'neuron'.",
+    "--download-dir": "Directory to download and load the weights, default is Hugging Face cache dir.",
+    "--seed": "Random seed for operations.",
+    "--max-num-seqs": "Maximum number of sequences per iteration (e.g., 256).",
+    "--max-num-batched-tokens": "Maximum number of batched tokens per iteration (e.g., 8192).",
+    "--gpu-memory-utilization": "The fraction of GPU memory to be used for the model execution (0.1 to 1.0).",
+    "--max-model-len": "Model context length (in tokens). If not specified, automatically derived from model config.",
+    "--quantization": "Quantization mode: 'awq', 'gptq', 'fp8', 'squeezellm', 'compressed-tensors', 'bitsandbytes'.",
+    "--enable-auto-tool-choice": "Enable auto tool choice logic for tool-calling capabilities.",
+    "--tool-call-parser": "Parser name for tool calls (e.g., 'qwen3_xml', 'llama3_json', 'mistral', 'hermes').",
+    "--chat-template": "Path to a Jinja2 chat template file or template string.",
+    "--served-model-name": "Custom model name(s) returned by the /v1/models OpenAI API endpoint.",
+    "--api-key": "Set an API key requirement for the vLLM server HTTP endpoints."
+}

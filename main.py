@@ -5,99 +5,72 @@ import webbrowser
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QComboBox, QCheckBox, QDoubleSpinBox, QSpinBox,
-    QPushButton, QTextEdit, QGroupBox, QFrame, QSplitter, QMessageBox
+    QPushButton, QTextEdit, QGroupBox, QSplitter, QMessageBox,
+    QFileDialog, QTabWidget, QListWidget, QListWidgetItem, QDialog,
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont, QColor
+from PySide6.QtGui import QFont
 
-from model_scanner import get_cached_models
+from model_scanner import get_cached_models, DEFAULT_HF_CACHE_DIR
 from docker_checker import check_open_webui_status, start_open_webui, stop_open_webui
 from vllm_runner import VLLMProcessWorker
+from hf_downloader import HFSearchWorker, HFDownloadWorker
+from vllm_flags_info import VLLM_FLAGS_HELP
 
 DARK_STYLESHEET = """
-QMainWindow {
-    background-color: #1e1e2e;
-    color: #cdd6f4;
-}
-QWidget {
-    font-family: 'Segoe UI', Inter, sans-serif;
-    font-size: 13px;
-    color: #cdd6f4;
-}
-QGroupBox {
-    border: 1px solid #45475a;
-    border-radius: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    font-weight: bold;
-    color: #89b4fa;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 5px;
-}
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-    background-color: #313244;
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 6px 10px;
-    color: #cdd6f4;
-}
-QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-    border: 1px solid #89b4fa;
-}
-QPushButton {
-    background-color: #89b4fa;
-    color: #11111b;
-    border-radius: 6px;
-    padding: 8px 14px;
-    font-weight: bold;
-}
-QPushButton:hover {
-    background-color: #b4befe;
-}
-QPushButton:disabled {
-    background-color: #45475a;
-    color: #7f849c;
-}
-QPushButton#stopBtn {
-    background-color: #f38ba8;
-    color: #11111b;
-}
-QPushButton#stopBtn:hover {
-    background-color: #eba0ac;
-}
-QPushButton#dockerBtn {
-    background-color: #a6e3a1;
-    color: #11111b;
-}
-QTextEdit {
-    background-color: #11111b;
-    border: 1px solid #313244;
-    border-radius: 6px;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 12px;
-    color: #a6adc8;
-}
-QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
-}
+QMainWindow { background-color: #1e1e2e; color: #cdd6f4; }
+QWidget { font-family: 'Segoe UI', Inter, sans-serif; font-size: 13px; color: #cdd6f4; }
+QTabWidget::pane { border: 1px solid #45475a; border-radius: 6px; background-color: #1e1e2e; }
+QTabBar::tab { background-color: #313244; padding: 8px 16px; margin-right: 2px; border-top-left-radius: 6px; border-top-right-radius: 6px; }
+QTabBar::tab:selected { background-color: #89b4fa; color: #11111b; font-weight: bold; }
+QGroupBox { border: 1px solid #45475a; border-radius: 8px; margin-top: 12px; padding-top: 12px; font-weight: bold; color: #89b4fa; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { background-color: #313244; border: 1px solid #45475a; border-radius: 6px; padding: 6px 10px; color: #cdd6f4; }
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #89b4fa; }
+QPushButton { background-color: #89b4fa; color: #11111b; border-radius: 6px; padding: 8px 14px; font-weight: bold; }
+QPushButton:hover { background-color: #b4befe; }
+QPushButton:disabled { background-color: #45475a; color: #7f849c; }
+QPushButton#stopBtn { background-color: #f38ba8; color: #11111b; }
+QPushButton#stopBtn:hover { background-color: #eba0ac; }
+QPushButton#dockerBtn { background-color: #a6e3a1; color: #11111b; }
+QTextEdit, QTableWidget { background-color: #11111b; border: 1px solid #313244; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 12px; color: #a6adc8; }
+QHeaderView::section { background-color: #313244; color: #cdd6f4; padding: 4px; border: 1px solid #45475a; }
 """
+
+class FlagsHelpDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("vLLM Command Line Flags Help")
+        self.resize(700, 500)
+        self.setStyleSheet(DARK_STYLESHEET)
+
+        layout = QVBoxLayout(self)
+        table = QTableWidget(len(VLLM_FLAGS_HELP), 2)
+        table.setHorizontalHeaderLabels(["Flag", "Description"])
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+
+        for row, (flag, desc) in enumerate(VLLM_FLAGS_HELP.items()):
+            table.setItem(row, 0, QTableWidgetItem(flag))
+            table.setItem(row, 1, QTableWidgetItem(desc))
+
+        layout.addWidget(table)
 
 class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("vLLM Manager & Open WebUI Control Center")
-        self.resize(1000, 750)
+        self.resize(1100, 800)
         self.setStyleSheet(DARK_STYLESHEET)
 
-        self.worker = None
+        self.current_cache_dir = DEFAULT_HF_CACHE_DIR
+        self.vllm_worker = None
+        self.download_worker = None
+        self.search_worker = None
 
         self.init_ui()
 
-        # Timer for Open WebUI status refresh
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_docker_status)
         self.status_timer.start(5000)
@@ -106,27 +79,33 @@ class VLLMManagerGUI(QMainWindow):
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-
         main_layout = QVBoxLayout(central_widget)
 
-        # Top Header Bar
-        header = QLabel("🚀 vLLM Desktop Manager")
-        header.setFont(QFont("Arial", 16, QFont.Bold))
-        header.setStyleSheet("color: #cba6f7; margin-bottom: 5px;")
-        main_layout.addWidget(header)
+        # Cache Directory Selector Header
+        cache_row = QHBoxLayout()
+        cache_row.addWidget(QLabel("📂 HF Cache Path:"))
+        self.cache_dir_edit = QLineEdit(self.current_cache_dir)
+        cache_row.addWidget(self.cache_dir_edit, 1)
+        browse_dir_btn = QPushButton("Browse Folder")
+        browse_dir_btn.clicked.connect(self.select_cache_directory)
+        cache_row.addWidget(browse_dir_btn)
+        main_layout.addLayout(cache_row)
 
-        # Splitter between Settings and Logs
+        tabs = QTabWidget()
+        
+        # TAB 1: vLLM Server & Open WebUI Launcher
+        server_tab = QWidget()
+        server_layout = QVBoxLayout(server_tab)
+
         splitter = QSplitter(Qt.Vertical)
-
         top_container = QWidget()
         top_layout = QHBoxLayout(top_container)
         top_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Left Column: vLLM Config & Controls
-        vllm_box = QGroupBox("vLLM Server Configuration")
+        # vLLM Config Box
+        vllm_box = QGroupBox("vLLM Parameters")
         vllm_layout = QVBoxLayout(vllm_box)
 
-        # Model selection
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("Model:"))
         self.model_combo = QComboBox()
@@ -134,13 +113,11 @@ class VLLMManagerGUI(QMainWindow):
         self.refresh_models()
         model_layout.addWidget(self.model_combo, 1)
         refresh_btn = QPushButton("🔄")
-        refresh_btn.setToolTip("Rescan HF cache")
         refresh_btn.setFixedWidth(36)
         refresh_btn.clicked.connect(self.refresh_models)
         model_layout.addWidget(refresh_btn)
         vllm_layout.addLayout(model_layout)
 
-        # Port & Quantization
         row1 = QHBoxLayout()
         row1.addWidget(QLabel("Port:"))
         self.port_spin = QSpinBox()
@@ -154,9 +131,8 @@ class VLLMManagerGUI(QMainWindow):
         row1.addWidget(self.quant_combo)
         vllm_layout.addLayout(row1)
 
-        # GPU Memory & Max Model Len
         row2 = QHBoxLayout()
-        row2.addWidget(QLabel("GPU Mem Util (0.1 - 1.0):"))
+        row2.addWidget(QLabel("GPU Mem Util:"))
         self.gpu_spin = QDoubleSpinBox()
         self.gpu_spin.setRange(0.10, 1.00)
         self.gpu_spin.setSingleStep(0.05)
@@ -171,9 +147,8 @@ class VLLMManagerGUI(QMainWindow):
         row2.addWidget(self.max_len_spin)
         vllm_layout.addLayout(row2)
 
-        # Checkboxes & Tool Parser
         row3 = QHBoxLayout()
-        self.tool_choice_cb = QCheckBox("Enable Auto Tool Choice (--enable-auto-tool-choice)")
+        self.tool_choice_cb = QCheckBox("Enable Auto Tool Choice")
         self.tool_choice_cb.setChecked(True)
         row3.addWidget(self.tool_choice_cb)
 
@@ -184,15 +159,16 @@ class VLLMManagerGUI(QMainWindow):
         row3.addWidget(self.tool_parser_combo)
         vllm_layout.addLayout(row3)
 
-        # Additional Extra Arguments
         row4 = QHBoxLayout()
         row4.addWidget(QLabel("Extra Flags:"))
         self.extra_flags_edit = QLineEdit()
         self.extra_flags_edit.setPlaceholderText("e.g. --trust-remote-code --dtype float16")
         row4.addWidget(self.extra_flags_edit)
+        flags_help_btn = QPushButton("❓ Flags Info")
+        flags_help_btn.clicked.connect(self.show_flags_help)
+        row4.addWidget(flags_help_btn)
         vllm_layout.addLayout(row4)
 
-        # Launch / Stop Buttons & Status
         btn_layout = QHBoxLayout()
         self.start_vllm_btn = QPushButton("▶ Launch vLLM Server")
         self.start_vllm_btn.clicked.connect(self.start_vllm)
@@ -207,64 +183,93 @@ class VLLMManagerGUI(QMainWindow):
         self.vllm_status_lbl = QLabel("STATUS: IDLE")
         self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #f9e2af; padding-left: 10px;")
         btn_layout.addWidget(self.vllm_status_lbl)
-
         vllm_layout.addLayout(btn_layout)
+
         top_layout.addWidget(vllm_box, 2)
 
-        # Right Column: Open WebUI Status Widget
-        webui_box = QGroupBox("Open WebUI Status Monitor")
+        # WebUI Box
+        webui_box = QGroupBox("Open WebUI Monitor")
         webui_layout = QVBoxLayout(webui_box)
-
         self.docker_status_lbl = QLabel("Container Status: Checking...")
         self.docker_status_lbl.setWordWrap(True)
         webui_layout.addWidget(self.docker_status_lbl)
 
-        self.http_status_lbl = QLabel("Web UI URL: http://localhost:8080")
-        webui_layout.addWidget(self.http_status_lbl)
-
-        self.open_browser_btn = QPushButton("🌐 Open in Browser")
-        self.open_browser_btn.setObjectName("dockerBtn")
-        self.open_browser_btn.clicked.connect(lambda: webbrowser.open("http://localhost:8080"))
-        webui_layout.addWidget(self.open_browser_btn)
+        open_browser_btn = QPushButton("🌐 Open WebUI")
+        open_browser_btn.setObjectName("dockerBtn")
+        open_browser_btn.clicked.connect(lambda: webbrowser.open("http://localhost:8080"))
+        webui_layout.addWidget(open_browser_btn)
 
         self.toggle_docker_btn = QPushButton("⚡ Start Container")
         self.toggle_docker_btn.clicked.connect(self.toggle_docker)
         webui_layout.addWidget(self.toggle_docker_btn)
-
         webui_layout.addStretch()
         top_layout.addWidget(webui_box, 1)
 
         splitter.addWidget(top_container)
 
-        # Bottom Area: Live Log Viewer
-        log_box = QGroupBox("Live vLLM Output Logs")
+        # Log Console
+        log_box = QGroupBox("Console Output Logs")
         log_layout = QVBoxLayout(log_box)
-
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         log_layout.addWidget(self.log_text)
-
-        clear_log_btn = QPushButton("Clear Logs")
-        clear_log_btn.setFixedWidth(100)
-        clear_log_btn.clicked.connect(self.log_text.clear)
-        log_layout.addWidget(clear_log_btn, alignment=Qt.AlignRight)
-
         splitter.addWidget(log_box)
 
-        main_layout.addWidget(splitter)
+        server_layout.addWidget(splitter)
+        tabs.addTab(server_tab, "🚀 Server & Control Center")
+
+        # TAB 2: Hugging Face Downloader
+        hf_tab = QWidget()
+        hf_layout = QVBoxLayout(hf_tab)
+
+        search_row = QHBoxLayout()
+        search_row.addWidget(QLabel("Search HF Models:"))
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("e.g. Qwen2.5-Coder, Llama-3.2, DeepSeek")
+        search_row.addWidget(self.search_edit, 1)
+        search_btn = QPushButton("🔎 Search")
+        search_btn.clicked.connect(self.search_hf_models)
+        search_row.addWidget(search_btn)
+        hf_layout.addLayout(search_row)
+
+        self.hf_results_table = QTableWidget(0, 3)
+        self.hf_results_table.setHorizontalHeaderLabels(["Model Repo ID", "Downloads", "Likes"])
+        self.hf_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        hf_layout.addWidget(self.hf_results_table)
+
+        dl_row = QHBoxLayout()
+        self.dl_btn = QPushButton("⬇ Download Selected Model to HF Cache")
+        self.dl_btn.clicked.connect(self.download_selected_model)
+        dl_row.addWidget(self.dl_btn)
+        hf_layout.addLayout(dl_row)
+
+        tabs.addTab(hf_tab, "🤗 Hugging Face Model Downloader")
+
+        main_layout.addWidget(tabs)
+
+    def select_cache_directory(self):
+        dir_path = QFileDialog.getExistingDirectory(self, "Select HF Cache Directory", self.current_cache_dir)
+        if dir_path:
+            self.current_cache_dir = dir_path
+            self.cache_dir_edit.setText(dir_path)
+            self.refresh_models()
 
     def refresh_models(self):
         self.model_combo.clear()
-        models = get_cached_models()
+        cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir
+        models = get_cached_models(cache_path)
         if models:
             self.model_combo.addItems(models)
         else:
             self.model_combo.addItem("Qwen/Qwen2.5-1.5B-Instruct")
 
+    def show_flags_help(self):
+        dialog = FlagsHelpDialog(self)
+        dialog.exec()
+
     def build_vllm_args(self):
         model_name = self.model_combo.currentText().strip()
         args = [model_name, "--port", str(self.port_spin.value())]
-
         quant = self.quant_combo.currentText()
         if quant != "none":
             args.extend(["--quantization", quant])
@@ -282,7 +287,6 @@ class VLLMManagerGUI(QMainWindow):
         extra = self.extra_flags_edit.text().strip()
         if extra:
             args.extend(extra.split())
-
         return args
 
     def start_vllm(self):
@@ -292,30 +296,25 @@ class VLLMManagerGUI(QMainWindow):
             return
 
         cmd_args = self.build_vllm_args()
+        cache_path = self.cache_dir_edit.text().strip()
 
         self.start_vllm_btn.setEnabled(False)
         self.stop_vllm_btn.setEnabled(True)
 
-        self.worker = VLLMProcessWorker(cmd_args)
-        self.worker.log_received.connect(self.append_log)
-        self.worker.status_changed.connect(self.on_vllm_status_change)
-        self.worker.start()
+        self.vllm_worker = VLLMProcessWorker(cmd_args, cache_path)
+        self.vllm_worker.log_received.connect(self.append_log)
+        self.vllm_worker.status_changed.connect(self.on_vllm_status_change)
+        self.vllm_worker.start()
 
     def stop_vllm(self):
-        if self.worker:
-            self.worker.stop_server()
+        if self.vllm_worker:
+            self.vllm_worker.stop_server()
 
     def on_vllm_status_change(self, status):
         self.vllm_status_lbl.setText(f"STATUS: {status}")
         if status == "RUNNING":
             self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #a6e3a1;")
-        elif status == "STARTING":
-            self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #f9e2af;")
-        elif status in ["STOPPED", "IDLE"]:
-            self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #fab387;")
-            self.start_vllm_btn.setEnabled(True)
-            self.stop_vllm_btn.setEnabled(False)
-        elif status == "ERROR":
+        elif status in ["STOPPED", "IDLE", "ERROR"]:
             self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #f38ba8;")
             self.start_vllm_btn.setEnabled(True)
             self.stop_vllm_btn.setEnabled(False)
@@ -337,10 +336,52 @@ class VLLMManagerGUI(QMainWindow):
     def toggle_docker(self):
         status = check_open_webui_status()
         if status["container_running"]:
-            ok, msg = stop_open_webui()
+            stop_open_webui()
         else:
-            ok, msg = start_open_webui()
+            start_open_webui()
         self.update_docker_status()
+
+    # HuggingFace Downloader methods
+    def search_hf_models(self):
+        query = self.search_edit.text().strip()
+        if not query:
+            return
+        self.search_worker = HFSearchWorker(query)
+        self.search_worker.results_ready.connect(self.populate_hf_results)
+        self.search_worker.error_occurred.connect(lambda err: QMessageBox.critical(self, "Search Error", err))
+        self.search_worker.start()
+
+    def populate_hf_results(self, results):
+        self.hf_results_table.setRowCount(0)
+        for r in results:
+            row = self.hf_results_table.rowCount()
+            self.hf_results_table.insertRow(row)
+            self.hf_results_table.setItem(row, 0, QTableWidgetItem(r["id"]))
+            self.hf_results_table.setItem(row, 1, QTableWidgetItem(str(r["downloads"])))
+            self.hf_results_table.setItem(row, 2, QTableWidgetItem(str(r["likes"])))
+
+    def download_selected_model(self):
+        selected_rows = self.hf_results_table.selectedItems()
+        if not selected_rows:
+            QMessageBox.warning(self, "No Selection", "Please select a model from the search results table.")
+            return
+
+        repo_id = self.hf_results_table.item(selected_rows[0].row(), 0).text()
+        cache_dir = self.cache_dir_edit.text().strip()
+
+        self.dl_btn.setEnabled(False)
+        self.download_worker = HFDownloadWorker(repo_id, cache_dir)
+        self.download_worker.log_signal.connect(self.append_log)
+        self.download_worker.finished_signal.connect(self.on_download_finished)
+        self.download_worker.start()
+
+    def on_download_finished(self, success, model_or_err):
+        self.dl_btn.setEnabled(True)
+        if success:
+            QMessageBox.information(self, "Download Complete", f"Model '{model_or_err}' successfully downloaded into cache!")
+            self.refresh_models()
+        else:
+            QMessageBox.critical(self, "Download Failed", f"Failed to download: {model_or_err}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
