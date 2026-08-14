@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="28" fill="#131313"/>
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="none" stroke="#353534" stroke-width="2"/>
+  
+  <!-- Network Nodes & Neural Path -->
+  <path d="M 36 64 L 64 36 L 92 64 L 64 92 Z" fill="none" stroke="#DC143C" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M 36 64 L 92 64" stroke="#DC143C" stroke-width="3" stroke-dasharray="4 4"/>
+  <path d="M 64 36 L 64 92" stroke="#DC143C" stroke-width="3" stroke-dasharray="4 4"/>
+  
+  <!-- Outer Connection Nodes -->
+  <circle cx="36" cy="64" r="8" fill="#FFB3B3"/>
+  <circle cx="64" cy="36" r="8" fill="#FFB3B3"/>
+  <circle cx="92" cy="64" r="8" fill="#FFB3B3"/>
+  <circle cx="64" cy="92" r="8" fill="#FFB3B3"/>
+  
+  <!-- Central vLLM Core Node -->
+  <circle cx="64" cy="64" r="10" fill="#DC143C"/>
+  <circle cx="64" cy="64" r="5" fill="#FFFFFF"/>
+</svg>

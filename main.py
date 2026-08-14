@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QFrame
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIcon, QPixmap
 
 from model_scanner import get_cached_models, DEFAULT_HF_CACHE_DIR
 from docker_checker import check_open_webui_status, start_open_webui, stop_open_webui
@@ -42,9 +42,13 @@ class FlagsHelpDialog(QDialog):
 class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("vLLM Manager - Obsidian Crimson")
+        self.setWindowTitle("vLLM Manager")
         self.resize(1280, 850)
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
+
+        logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
+        if os.path.exists(logo_path):
+            self.setWindowIcon(QIcon(logo_path))
 
         self.current_cache_dir = DEFAULT_HF_CACHE_DIR
         self.vllm_worker = None
@@ -68,7 +72,7 @@ class VLLMManagerGUI(QMainWindow):
         main_layout.setSpacing(0)
 
         # -------------------------------------------------------------
-        # Left Sidebar (Obsidian Crimson Layout from Stitch design)
+        # Left Sidebar
         # -------------------------------------------------------------
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
@@ -77,16 +81,24 @@ class VLLMManagerGUI(QMainWindow):
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
         sidebar_layout.setSpacing(8)
 
-        # Brand header
-        brand_label = QLabel("vLLM Control")
+        # Brand header with SVG logo
+        brand_layout = QHBoxLayout()
+        logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
+        if os.path.exists(logo_path):
+            logo_lbl = QLabel()
+            pix = QPixmap(logo_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_lbl.setPixmap(pix)
+            brand_layout.addWidget(logo_lbl)
+
+        brand_label = QLabel("vLLM Manager")
         brand_label.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
         brand_label.setStyleSheet("color: #dc143c; margin-bottom: 2px;")
-        sub_brand = QLabel("Local Inference Engine")
-        sub_brand.setStyleSheet("color: #ac8888; font-size: 11px; margin-bottom: 16px;")
-        sidebar_layout.addWidget(brand_label)
-        sidebar_layout.addWidget(sub_brand)
+        brand_layout.addWidget(brand_label, 1)
 
-        # Navigation buttons with FontAwesome icons
+        sidebar_layout.addLayout(brand_layout)
+        sidebar_layout.addSpacing(16)
+
+        # Navigation buttons
         self.nav_server_btn = QPushButton("  Server Manager")
         self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ac8888'))
         self.nav_server_btn.setObjectName("navBtn")
@@ -360,7 +372,6 @@ class VLLMManagerGUI(QMainWindow):
         self.nav_server_btn.setChecked(index == 0)
         self.nav_browser_btn.setChecked(index == 1)
 
-        # Update icons color on active selection
         self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ffb3b3' if index == 0 else '#ac8888'))
         self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 1 else '#ac8888'))
 
