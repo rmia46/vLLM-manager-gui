@@ -76,27 +76,28 @@ class VLLMManagerGUI(QMainWindow):
         # -------------------------------------------------------------
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(240)
+        sidebar.setFixedWidth(250)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(12, 16, 12, 16)
-        sidebar_layout.setSpacing(8)
+        sidebar_layout.setContentsMargins(14, 20, 14, 20)
+        sidebar_layout.setSpacing(10)
 
-        # Brand header with SVG logo
+        # Brand header with SVG logo (larger)
         brand_layout = QHBoxLayout()
+        brand_layout.setSpacing(10)
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
         if os.path.exists(logo_path):
             logo_lbl = QLabel()
-            pix = QPixmap(logo_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix = QPixmap(logo_path).scaled(44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             logo_lbl.setPixmap(pix)
             brand_layout.addWidget(logo_lbl)
 
         brand_label = QLabel("vLLM Manager")
-        brand_label.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
-        brand_label.setStyleSheet("color: #dc143c; margin-bottom: 2px;")
+        brand_label.setFont(QFont("Plus Jakarta Sans", 20, QFont.Bold))
+        brand_label.setStyleSheet("color: #dc143c; margin-bottom: 0px;")
         brand_layout.addWidget(brand_label, 1)
 
         sidebar_layout.addLayout(brand_layout)
-        sidebar_layout.addSpacing(16)
+        sidebar_layout.addSpacing(20)
 
         # Navigation buttons
         self.nav_server_btn = QPushButton("  Server Manager")
