@@ -1,7 +1,6 @@
 import re
 import os
 import sys
-import subprocess
 from PySide6.QtCore import QThread, Signal
 from huggingface_hub import HfApi, snapshot_download
 
@@ -125,6 +124,41 @@ class HFBrowserWorker(QThread):
         except Exception as e:
             self.error_occurred.emit(str(e))
 
+class CustomTqdmHook:
+    def __init__(self, log_signal, progress_signal, repo_id):
+        self.log_signal = log_signal
+        self.progress_signal = progress_signal
+        self.repo_id = repo_id
+        self.is_cancelled = False
+
+    def write(self, s):
+        if not s:
+            return
+        clean_str = s.strip()
+        if clean_str:
+            self.log_signal.emit(clean_str + "\n")
+
+            # Parse tqdm percentage: e.g. " 45%|████▌     | 1.2G/2.5G [00:12<00:15, 85.2MB/s]"
+            p_match = re.search(r'(\d+)%', clean_str)
+            percent = int(p_match.group(1)) if p_match else 0
+
+            # Parse file count ratio or size ratio + download speed
+            ratio_match = re.search(r'(\d+/\d+|[\d\.]+[kMGT]?B/[\d\.]+[kMGT]?B)', clean_str)
+            speed_match = re.search(r'([\d\.]+[kMGT]?B/s)', clean_str)
+
+            info_parts = []
+            if ratio_match:
+                info_parts.append(ratio_match.group(0))
+            if speed_match:
+                info_parts.append(speed_match.group(0))
+
+            speed_str = " | ".join(info_parts) if info_parts else "Downloading files..."
+            status_msg = f"Downloading {self.repo_id} ({percent}%) [{speed_str}]"
+            self.progress_signal.emit(percent, status_msg)
+
+    def flush(self):
+        pass
+
 class HFDownloadWorker(QThread):
     log_signal = Signal(str)
     progress_signal = Signal(int, str)  # percent, status_text
@@ -134,107 +168,42 @@ class HFDownloadWorker(QThread):
         super().__init__()
         self.repo_id = repo_id
         self.hf_cache_dir = hf_cache_dir
-        self.process = None
         self.is_cancelled = False
 
     def run(self):
         self.log_signal.emit(f"Starting download for '{self.repo_id}' into '{self.hf_cache_dir}'...\n")
-        self.progress_signal.emit(0, f"Downloading {self.repo_id} (Initializing...)")
+        self.progress_signal.emit(0, f"Downloading {self.repo_id}...")
 
-        python_script = (
-            "import os, sys\n"
-            "os.environ['PYTHONUNBUFFERED'] = '1'\n"
-            "os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '0'\n"
-            "from huggingface_hub import snapshot_download\n"
-            "try:\n"
-            f"    snapshot_download(repo_id='{self.repo_id}', cache_dir='{self.hf_cache_dir}')\n"
-            "    print('SUCCESS_HF_DOWNLOAD')\n"
-            "except Exception as e:\n"
-            "    print('ERROR_HF_DOWNLOAD:', str(e), file=sys.stderr)\n"
-            "    sys.exit(1)\n"
-        )
-
-        env = os.environ.copy()
-        env["PYTHONUNBUFFERED"] = "1"
-        env["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
+        # Hook sys.stderr to catch tqdm output directly inside PySide thread
+        old_stderr = sys.stderr
+        hook = CustomTqdmHook(self.log_signal, self.progress_signal, self.repo_id)
 
         try:
-            self.process = subprocess.Popen(
-                [sys.executable, "-u", "-c", python_script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                env=env
+            sys.stderr = hook
+            snapshot_download(
+                repo_id=self.repo_id,
+                cache_dir=self.hf_cache_dir
             )
-
-            # Read stderr character-by-character to parse tqdm carriage returns '\r'
-            buffer = ""
-            current_percent = 0
-
-            while True:
-                if self.is_cancelled:
-                    break
-
-                char = self.process.stderr.read(1)
-                if not char:
-                    # Check process state
-                    if self.process.poll() is not None:
-                        break
-                    continue
-
-                if char in ['\r', '\n']:
-                    line = buffer.strip()
-                    buffer = ""
-
-                    if line:
-                        self.log_signal.emit(line + "\n")
-
-                        # Parse tqdm percentage: e.g. " 45%|████▌     | 1.2G/2.5G [00:12<00:15, 85.2MB/s]"
-                        p_match = re.search(r'(\d+)%', line)
-                        if p_match:
-                            current_percent = int(p_match.group(1))
-
-                        # Parse file count ratio or size ratio: e.g. 15/33 or 1.2G/2.5G or 85.2MB/s
-                        ratio_match = re.search(r'(\d+/\d+|[\d\.]+[kMGT]?B/[\d\.]+[kMGT]?B)', line)
-                        speed_match = re.search(r'([\d\.]+[kMGT]?B/s)', line)
-
-                        info_parts = []
-                        if ratio_match:
-                            info_parts.append(ratio_match.group(0))
-                        if speed_match:
-                            info_parts.append(speed_match.group(0))
-
-                        speed_str = " | ".join(info_parts) if info_parts else "Downloading files..."
-                        status_msg = f"Downloading {self.repo_id} ({current_percent}%) [{speed_str}]"
-                        self.progress_signal.emit(current_percent, status_msg)
-                else:
-                    buffer += char
-
-            return_code = self.process.wait()
+            sys.stderr = old_stderr
 
             if self.is_cancelled:
                 self.progress_signal.emit(0, "Download Cancelled")
                 self.log_signal.emit(f"\n[CANCEL] Download cancelled by user for {self.repo_id}.\n")
                 self.finished_signal.emit(False, "Cancelled by user")
-            elif return_code == 0:
+            else:
                 self.progress_signal.emit(100, "Download Complete!")
                 self.log_signal.emit(f"\nSuccessfully downloaded {self.repo_id}!\n")
                 self.finished_signal.emit(True, self.repo_id)
-            else:
-                self.progress_signal.emit(0, "Download Failed")
-                self.log_signal.emit(f"\nDownload failed for {self.repo_id}.\n")
-                self.finished_signal.emit(False, f"Process exited with code {return_code}")
         except Exception as e:
-            self.log_signal.emit(f"Error downloading {self.repo_id}: {str(e)}\n")
-            self.finished_signal.emit(False, str(e))
+            sys.stderr = old_stderr
+            if self.is_cancelled:
+                self.progress_signal.emit(0, "Download Cancelled")
+                self.log_signal.emit(f"\n[CANCEL] Download cancelled for {self.repo_id}.\n")
+                self.finished_signal.emit(False, "Cancelled by user")
+            else:
+                self.log_signal.emit(f"\nError downloading {self.repo_id}: {str(e)}\n")
+                self.finished_signal.emit(False, str(e))
 
     def cancel_download(self):
         self.is_cancelled = True
-        if self.process and self.process.poll() is None:
-            self.log_signal.emit("\n[CANCEL] Terminating download process...\n")
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=2)
-            except Exception:
-                self.process.kill()
+        self.log_signal.emit("\n[CANCEL] Cancellation requested by user...\n")
