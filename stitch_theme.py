@@ -5,7 +5,7 @@ QMainWindow {
 }
 QWidget {
     font-family: 'Inter', 'Segoe UI', sans-serif;
-    font-size: 13px;
+    font-size: 11px;
     color: #e5e2e1;
 }
 
@@ -19,11 +19,11 @@ QPushButton#navBtn {
     background-color: transparent;
     color: #ac8888;
     border: none;
-    border-radius: 8px;
-    padding: 10px 14px;
+    border-radius: 6px;
+    padding: 6px 10px;
     text-align: left;
     font-family: 'Inter';
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
 }
 QPushButton#navBtn:hover {
@@ -40,85 +40,88 @@ QPushButton#navBtn:checked {
 QFrame#panelCard {
     background-color: #121212;
     border: 1px solid #2A2A2A;
-    border-radius: 16px;
+    border-radius: 12px;
 }
 
-/* Uniform Card Header Bar (11px JetBrains Mono, 28px Height) */
+/* Uniform Card Header Bar */
 QLabel#cardHeader {
     background-color: #1A1A1A;
     color: #ffb3b3;
     font-family: 'JetBrains Mono';
     font-weight: 700;
-    font-size: 11px;
+    font-size: 10px;
     letter-spacing: 0.08em;
-    padding: 6px 12px;
-    min-height: 16px;
-    max-height: 16px;
-    border-top-left-radius: 15px;
-    border-top-right-radius: 15px;
+    padding: 4px 10px;
+    min-height: 14px;
+    max-height: 14px;
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
     border-bottom: 1px solid #2A2A2A;
 }
 
-/* Input Fields (12px Radius, #1A1A1A fill) */
+/* Compact Input Fields */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
     background-color: #1A1A1A;
     border: 1px solid #353534;
-    border-radius: 12px;
-    padding: 8px 12px;
+    border-radius: 6px;
+    padding: 4px 8px;
     font-family: 'Inter';
-    font-size: 13px;
+    font-size: 11px;
     color: #e5e2e1;
-    min-height: 20px;
+    min-height: 14px;
 }
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
     border: 1px solid #dc143c;
 }
 QComboBox::drop-down {
     border: none;
-    padding-right: 8px;
+    padding-right: 6px;
 }
 
-/* Primary Crimson Button (#DC143C Fill, 12px Radius) */
+/* Compact Primary Crimson Button */
 QPushButton#primaryBtn {
     background-color: #dc143c;
     color: #ffffff;
     border: none;
-    border-radius: 12px;
-    padding: 10px 18px;
+    border-radius: 6px;
+    padding: 5px 12px;
     font-family: 'Inter';
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
+    min-height: 14px;
 }
 QPushButton#primaryBtn:hover {
     background-color: #bf0030;
 }
 
-/* Secondary Ghost Button */
+/* Compact Secondary Ghost Button */
 QPushButton#secondaryBtn {
     background-color: transparent;
     color: #ffb3b3;
     border: 1px solid #dc143c;
-    border-radius: 12px;
-    padding: 8px 14px;
+    border-radius: 6px;
+    padding: 4px 10px;
     font-family: 'Inter';
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
+    min-height: 14px;
 }
 QPushButton#secondaryBtn:hover {
     background-color: #1A1A1A;
     color: #ffffff;
 }
 
-/* Stop Button (#920703) */
+/* Compact Stop Button */
 QPushButton#stopBtn {
     background-color: #920703;
     color: #ffffff;
     border: none;
-    border-radius: 12px;
-    padding: 10px 18px;
+    border-radius: 6px;
+    padding: 5px 12px;
     font-family: 'Inter';
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
+    min-height: 14px;
 }
 QPushButton#stopBtn:hover {
     background-color: #690000;
@@ -127,37 +130,37 @@ QPushButton#stopBtn:hover {
 /* System Progress Gauges */
 QProgressBar {
     border: 1px solid #2A2A2A;
-    border-radius: 6px;
+    border-radius: 4px;
     text-align: center;
     background-color: #1A1A1A;
     color: #e5e2e1;
     font-family: 'JetBrains Mono';
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
-    max-height: 14px;
+    max-height: 12px;
 }
 QProgressBar::chunk {
     background-color: #dc143c;
-    border-radius: 5px;
+    border-radius: 3px;
 }
 
 /* Terminal Console (#000000 Fill, JetBrains Mono) */
 QTextEdit, QTableWidget {
     background-color: #000000;
     border: 1px solid #2A2A2A;
-    border-radius: 12px;
+    border-radius: 8px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 11px;
     color: #BC8F8F;
-    padding: 8px;
+    padding: 6px;
 }
 QHeaderView::section {
     background-color: #1A1A1A;
     color: #ffb3b3;
-    padding: 8px;
+    padding: 5px;
     border: 1px solid #2A2A2A;
     font-family: 'JetBrains Mono';
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.08em;
 }
