@@ -49,20 +49,25 @@ class HFBrowserWorker(QThread):
                 
             combined_search = " ".join(search_terms) if search_terms else None
 
-            # Determine sorting key for API call
+            # Determine sorting key for API call (huggingface_hub >= 1.0)
             api_sort = "downloads"
             if self.sort_by == "Likes":
                 api_sort = "likes"
             elif self.sort_by == "Recently Created":
                 api_sort = "created_at"
 
-            raw_models = api.list_models(
-                search=combined_search,
-                limit=60,
-                sort=api_sort,
-                direction=-1,
-                pipeline_tag="text-generation" if self.filter_tag != "Vision" else None
-            )
+            kwargs = {
+                "limit": 60,
+                "sort": api_sort,
+            }
+            if combined_search:
+                kwargs["search"] = combined_search
+            if self.filter_tag == "Vision":
+                kwargs["pipeline_tag"] = "image-text-to-text"
+            else:
+                kwargs["pipeline_tag"] = "text-generation"
+
+            raw_models = list(api.list_models(**kwargs))
 
             res = []
             for m in raw_models:
