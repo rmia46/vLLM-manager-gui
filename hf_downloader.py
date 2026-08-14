@@ -4,7 +4,7 @@ from huggingface_hub import HfApi, snapshot_download
 
 def parse_model_params(model_id):
     """
-    Parses parameter count from model ID string (e.g. 1.5B, 7B, 32B, 0.5B).
+    Parses parameter count from model ID string (e.g. 1.5B, 7B, 32B, 0.5B, 4b).
     Returns (params_in_billions, estimated_vram_gb_fp16)
     """
     match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_id)
@@ -57,14 +57,17 @@ class HFBrowserWorker(QThread):
                 api_sort = "created_at"
 
             kwargs = {
-                "limit": 60,
+                "limit": 100,
                 "sort": api_sort,
             }
             if combined_search:
                 kwargs["search"] = combined_search
+
+            # Only restrict pipeline_tag if user explicitly selected Vision or no specific user query is active.
+            # Community models (GGUF, unsloth, quants, fine-tunes) often omit pipeline_tag metadata.
             if self.filter_tag == "Vision":
                 kwargs["pipeline_tag"] = "image-text-to-text"
-            else:
+            elif not combined_search and self.family == "All" and self.filter_tag == "All":
                 kwargs["pipeline_tag"] = "text-generation"
 
             raw_models = list(api.list_models(**kwargs))
@@ -118,5 +121,5 @@ class HFDownloadWorker(QThread):
             self.log_signal.emit(f"Successfully downloaded {self.repo_id}!\n")
             self.finished_signal.emit(True, self.repo_id)
         except Exception as e:
-            self.log_signal.emit(f"Download Error: {str(e)}\n")
+            self.log_signal.emit(f"Error downloading {self.repo_id}: {str(e)}\n")
             self.finished_signal.emit(False, str(e))
