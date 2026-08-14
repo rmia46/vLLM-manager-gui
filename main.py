@@ -6,8 +6,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QComboBox, QCheckBox, QDoubleSpinBox, QSpinBox,
     QPushButton, QTextEdit, QGroupBox, QSplitter, QMessageBox,
-    QFileDialog, QTabWidget, QListWidget, QListWidgetItem, QDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView
+    QFileDialog, QTabWidget, QDialog, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
@@ -15,7 +14,7 @@ from PySide6.QtGui import QFont
 from model_scanner import get_cached_models, DEFAULT_HF_CACHE_DIR
 from docker_checker import check_open_webui_status, start_open_webui, stop_open_webui
 from vllm_runner import VLLMProcessWorker
-from hf_downloader import HFSearchWorker, HFDownloadWorker
+from hf_downloader import HFBrowserWorker, HFDownloadWorker
 from vllm_flags_info import VLLM_FLAGS_HELP
 
 DARK_STYLESHEET = """
@@ -61,13 +60,13 @@ class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("vLLM Manager & Open WebUI Control Center")
-        self.resize(1100, 800)
+        self.resize(1150, 820)
         self.setStyleSheet(DARK_STYLESHEET)
 
         self.current_cache_dir = DEFAULT_HF_CACHE_DIR
         self.vllm_worker = None
         self.download_worker = None
-        self.search_worker = None
+        self.browser_worker = None
 
         self.init_ui()
 
@@ -75,6 +74,9 @@ class VLLMManagerGUI(QMainWindow):
         self.status_timer.timeout.connect(self.update_docker_status)
         self.status_timer.start(5000)
         self.update_docker_status()
+
+        # Initial popular models load
+        self.browse_hf_models()
 
     def init_ui(self):
         central_widget = QWidget()
@@ -218,23 +220,64 @@ class VLLMManagerGUI(QMainWindow):
         server_layout.addWidget(splitter)
         tabs.addTab(server_tab, "🚀 Server & Control Center")
 
-        # TAB 2: Hugging Face Downloader
+        # TAB 2: Advanced Hugging Face Browser & Downloader
         hf_tab = QWidget()
         hf_layout = QVBoxLayout(hf_tab)
 
-        search_row = QHBoxLayout()
-        search_row.addWidget(QLabel("Search HF Models:"))
-        self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("e.g. Qwen2.5-Coder, Llama-3.2, DeepSeek")
-        search_row.addWidget(self.search_edit, 1)
-        search_btn = QPushButton("🔎 Search")
-        search_btn.clicked.connect(self.search_hf_models)
-        search_row.addWidget(search_btn)
-        hf_layout.addLayout(search_row)
+        # Filter Control Panel
+        filter_box = QGroupBox("Browse & Filter Models")
+        filter_layout = QVBoxLayout(filter_box)
 
-        self.hf_results_table = QTableWidget(0, 3)
-        self.hf_results_table.setHorizontalHeaderLabels(["Model Repo ID", "Downloads", "Likes"])
+        frow1 = QHBoxLayout()
+        frow1.addWidget(QLabel("Family:"))
+        self.family_combo = QComboBox()
+        self.family_combo.addItems(["All", "Qwen", "Llama", "DeepSeek", "Mistral", "Phi", "Gemma"])
+        self.family_combo.currentIndexChanged.connect(self.browse_hf_models)
+        frow1.addWidget(self.family_combo)
+
+        frow1.addWidget(QLabel("Category:"))
+        self.category_combo = QComboBox()
+        self.category_combo.addItems(["All", "Coder", "Reasoning / Thinking", "Vision", "AWQ / Quantized"])
+        self.category_combo.currentIndexChanged.connect(self.browse_hf_models)
+        frow1.addWidget(self.category_combo)
+
+        frow1.addWidget(QLabel("Sort By:"))
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems(["Most Downloads", "Likes", "Model Size (Asc)", "Model Size (Desc)", "Recently Created"])
+        self.sort_combo.currentIndexChanged.connect(self.browse_hf_models)
+        frow1.addWidget(self.sort_combo)
+        filter_layout.addLayout(frow1)
+
+        frow2 = QHBoxLayout()
+        self.vram_filter_cb = QCheckBox("Filter by Max GPU VRAM (GB):")
+        self.vram_filter_cb.stateChanged.connect(self.browse_hf_models)
+        frow2.addWidget(self.vram_filter_cb)
+
+        self.vram_spin = QSpinBox()
+        self.vram_spin.setRange(1, 128)
+        self.vram_spin.setValue(16)
+        self.vram_spin.valueChanged.connect(self.browse_hf_models)
+        frow2.addWidget(self.vram_spin)
+
+        frow2.addWidget(QLabel("Search Keyword:"))
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("Search optional keyword...")
+        self.search_edit.returnPressed.connect(self.browse_hf_models)
+        frow2.addWidget(self.search_edit, 1)
+
+        apply_btn = QPushButton("🔎 Apply Filters")
+        apply_btn.clicked.connect(self.browse_hf_models)
+        frow2.addWidget(apply_btn)
+        filter_layout.addLayout(frow2)
+
+        hf_layout.addWidget(filter_box)
+
+        # Table showing models with parameters & estimated VRAM
+        self.hf_results_table = QTableWidget(0, 5)
+        self.hf_results_table.setHorizontalHeaderLabels(["Model Repo ID", "Params", "Est. VRAM (FP16)", "Downloads", "Likes"])
         self.hf_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.hf_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.hf_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         hf_layout.addWidget(self.hf_results_table)
 
         dl_row = QHBoxLayout()
@@ -243,7 +286,7 @@ class VLLMManagerGUI(QMainWindow):
         dl_row.addWidget(self.dl_btn)
         hf_layout.addLayout(dl_row)
 
-        tabs.addTab(hf_tab, "🤗 Hugging Face Model Downloader")
+        tabs.addTab(hf_tab, "🤗 Hugging Face Model Browser & Downloader")
 
         main_layout.addWidget(tabs)
 
@@ -341,15 +384,25 @@ class VLLMManagerGUI(QMainWindow):
             start_open_webui()
         self.update_docker_status()
 
-    # HuggingFace Downloader methods
-    def search_hf_models(self):
+    # HuggingFace Browser methods
+    def browse_hf_models(self):
+        family = self.family_combo.currentText()
+        category = self.category_combo.currentText()
+        sort_by = self.sort_combo.currentText()
         query = self.search_edit.text().strip()
-        if not query:
-            return
-        self.search_worker = HFSearchWorker(query)
-        self.search_worker.results_ready.connect(self.populate_hf_results)
-        self.search_worker.error_occurred.connect(lambda err: QMessageBox.critical(self, "Search Error", err))
-        self.search_worker.start()
+
+        max_vram = self.vram_spin.value() if self.vram_filter_cb.isChecked() else None
+
+        self.browser_worker = HFBrowserWorker(
+            family=family,
+            filter_tag=category,
+            sort_by=sort_by,
+            query=query,
+            max_vram=max_vram
+        )
+        self.browser_worker.results_ready.connect(self.populate_hf_results)
+        self.browser_worker.error_occurred.connect(lambda err: QMessageBox.critical(self, "Browse Error", err))
+        self.browser_worker.start()
 
     def populate_hf_results(self, results):
         self.hf_results_table.setRowCount(0)
@@ -357,13 +410,15 @@ class VLLMManagerGUI(QMainWindow):
             row = self.hf_results_table.rowCount()
             self.hf_results_table.insertRow(row)
             self.hf_results_table.setItem(row, 0, QTableWidgetItem(r["id"]))
-            self.hf_results_table.setItem(row, 1, QTableWidgetItem(str(r["downloads"])))
-            self.hf_results_table.setItem(row, 2, QTableWidgetItem(str(r["likes"])))
+            self.hf_results_table.setItem(row, 1, QTableWidgetItem(r["params_b"]))
+            self.hf_results_table.setItem(row, 2, QTableWidgetItem(r["vram_gb"]))
+            self.hf_results_table.setItem(row, 3, QTableWidgetItem(str(r["downloads"])))
+            self.hf_results_table.setItem(row, 4, QTableWidgetItem(str(r["likes"])))
 
     def download_selected_model(self):
         selected_rows = self.hf_results_table.selectedItems()
         if not selected_rows:
-            QMessageBox.warning(self, "No Selection", "Please select a model from the search results table.")
+            QMessageBox.warning(self, "No Selection", "Please select a model from the table.")
             return
 
         repo_id = self.hf_results_table.item(selected_rows[0].row(), 0).text()
