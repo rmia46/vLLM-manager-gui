@@ -73,12 +73,19 @@ QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
     border: 1px solid #dc143c;
 }
-QComboBox::drop-down {
-    border: none;
-    padding-right: 6px;
+
+/* QComboBox Popup List Styling (Obsidian Crimson Dark List) */
+QComboBox QAbstractItemView {
+    background-color: #1A1A1A;
+    border: 1px solid #2A2A2A;
+    border-radius: 8px;
+    selection-background-color: #dc143c;
+    selection-color: #ffffff;
+    color: #e5e2e1;
+    padding: 4px;
+    outline: none;
 }
 
-/* Sweetspot Primary Crimson Button */
 QPushButton#primaryBtn {
     background-color: #dc143c;
     color: #ffffff;
@@ -94,7 +101,6 @@ QPushButton#primaryBtn:hover {
     background-color: #bf0030;
 }
 
-/* Sweetspot Secondary Ghost Button */
 QPushButton#secondaryBtn {
     background-color: transparent;
     color: #ffb3b3;
@@ -111,7 +117,6 @@ QPushButton#secondaryBtn:hover {
     color: #ffffff;
 }
 
-/* Sweetspot Stop Button */
 QPushButton#stopBtn {
     background-color: #920703;
     color: #ffffff;

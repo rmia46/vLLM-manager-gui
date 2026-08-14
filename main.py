@@ -29,7 +29,7 @@ class SolidCard(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Uniform Header Bar with strict height constraints
+        # Uniform Header Bar
         self.header = QLabel()
         self.header.setObjectName("cardHeader")
         if icon_name:
@@ -115,7 +115,7 @@ class VLLMManagerGUI(QMainWindow):
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
         sidebar_layout.setSpacing(8)
 
-        # Branding Header (Uniform 16pt font size)
+        # Branding Header
         brand_layout = QHBoxLayout()
         brand_layout.setSpacing(8)
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
@@ -174,7 +174,7 @@ class VLLMManagerGUI(QMainWindow):
         content_layout.setContentsMargins(16, 16, 16, 16)
         content_layout.setSpacing(12)
 
-        # Top Header Bar (Uniform 16pt font size)
+        # Top Header Bar
         header_bar = QHBoxLayout()
         header_bar.setSpacing(10)
         header_title = QLabel("vLLM Manager")
@@ -221,10 +221,11 @@ class VLLMManagerGUI(QMainWindow):
         self.refresh_models()
         hero_top.addWidget(self.model_combo, 1)
 
-        refresh_btn = QPushButton()
+        # Redesigned Rescan Button (Theme-aligned secondary ghost icon button)
+        refresh_btn = QPushButton("  Rescan")
         refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#ffb3b3'))
-        refresh_btn.setFixedWidth(36)
-        refresh_btn.setToolTip("Rescan local models")
+        refresh_btn.setObjectName("secondaryBtn")
+        refresh_btn.setToolTip("Rescan local models in HF cache")
         refresh_btn.clicked.connect(self.refresh_models)
         hero_top.addWidget(refresh_btn)
 
@@ -491,11 +492,14 @@ class VLLMManagerGUI(QMainWindow):
             self.refresh_models()
 
     def refresh_models(self):
+        curr = self.model_combo.currentText().strip()
         self.model_combo.clear()
         cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir
         models = get_cached_models(cache_path)
         if models:
             self.model_combo.addItems(models)
+            if curr and curr in models:
+                self.model_combo.setCurrentText(curr)
         else:
             self.model_combo.addItem("Qwen/Qwen2.5-1.5B-Instruct")
 
