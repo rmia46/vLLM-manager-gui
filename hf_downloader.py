@@ -122,11 +122,12 @@ class HFDownloadWorker(QThread):
     progress_signal = Signal(int, str)  # percent, status_text
     finished_signal = Signal(bool, str)
 
-    def __init__(self, repo_id, hf_cache_dir, selected_filename=None):
+    def __init__(self, repo_id, hf_cache_dir, selected_filename=None, hf_token=None):
         super().__init__()
         self.repo_id = repo_id
         self.hf_cache_dir = hf_cache_dir
         self.selected_filename = selected_filename
+        self.hf_token = hf_token
         self.process = None
         self.is_cancelled = False
 
@@ -134,23 +135,28 @@ class HFDownloadWorker(QThread):
         self.log_signal.emit(f"Starting download for '{self.repo_id}' into '{self.hf_cache_dir}'...\n")
         self.progress_signal.emit(0, f"Downloading {self.repo_id}...")
 
+        token_str = f"'{self.hf_token}'" if self.hf_token else "None"
+
         if self.selected_filename:
             py_code = (
                 "import os, sys\n"
                 "os.environ['PYTHONUNBUFFERED'] = '1'\n"
                 "from huggingface_hub import hf_hub_download\n"
-                f"hf_hub_download(repo_id='{self.repo_id}', filename='{self.selected_filename}', cache_dir='{self.hf_cache_dir}')\n"
+                f"hf_hub_download(repo_id='{self.repo_id}', filename='{self.selected_filename}', cache_dir='{self.hf_cache_dir}', token={token_str})\n"
             )
         else:
             py_code = (
                 "import os, sys\n"
                 "os.environ['PYTHONUNBUFFERED'] = '1'\n"
                 "from huggingface_hub import snapshot_download\n"
-                f"snapshot_download(repo_id='{self.repo_id}', cache_dir='{self.hf_cache_dir}')\n"
+                f"snapshot_download(repo_id='{self.repo_id}', cache_dir='{self.hf_cache_dir}', token={token_str})\n"
             )
 
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
+        if self.hf_token:
+            env["HF_TOKEN"] = self.hf_token
+            env["HUGGING_FACE_HUB_TOKEN"] = self.hf_token
 
         try:
             self.process = subprocess.Popen(

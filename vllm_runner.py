@@ -9,10 +9,11 @@ class VLLMProcessWorker(QThread):
     log_received = Signal(str)
     status_changed = Signal(str)
 
-    def __init__(self, cmd_args, hf_cache_path):
+    def __init__(self, cmd_args, hf_cache_path, hf_token=None):
         super().__init__()
         self.cmd_args = cmd_args
         self.hf_cache_path = hf_cache_path
+        self.hf_token = hf_token
         self.process = None
         self._is_stopping = False
 
@@ -21,6 +22,9 @@ class VLLMProcessWorker(QThread):
         env = os.environ.copy()
         env["HF_HOME"] = self.hf_cache_path
         env["PYTHONUNBUFFERED"] = "1"
+        if self.hf_token:
+            env["HF_TOKEN"] = self.hf_token
+            env["HUGGING_FACE_HUB_TOKEN"] = self.hf_token
 
         cmd = [VENV_VLLM, "serve"] + self.cmd_args
         self.log_received.emit(f"[vLLM Manager] HF_HOME={self.hf_cache_path}\n")

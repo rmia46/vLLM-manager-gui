@@ -212,7 +212,7 @@ class VLLMManagerGUI(QMainWindow):
         header_bar.addWidget(cache_label)
 
         self.cache_dir_edit = QLineEdit(self.current_cache_dir)
-        self.cache_dir_edit.setFixedWidth(240)
+        self.cache_dir_edit.setFixedWidth(200)
         header_bar.addWidget(self.cache_dir_edit)
 
         browse_dir_btn = QPushButton("Browse")
@@ -220,6 +220,19 @@ class VLLMManagerGUI(QMainWindow):
         browse_dir_btn.setObjectName("secondaryBtn")
         browse_dir_btn.clicked.connect(self.select_cache_directory)
         header_bar.addWidget(browse_dir_btn)
+
+        token_label = QLabel("HF Token:")
+        token_label.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 11px; font-weight: 700; color: #ac8888;")
+        header_bar.addWidget(token_label)
+
+        self.hf_token_edit = QLineEdit()
+        self.hf_token_edit.setEchoMode(QLineEdit.Password)
+        self.hf_token_edit.setPlaceholderText("hf_xxxxxxxxxxxx")
+        self.hf_token_edit.setFixedWidth(160)
+        # Pre-fill HF_TOKEN environment variable if available
+        if "HF_TOKEN" in os.environ:
+            self.hf_token_edit.setText(os.environ["HF_TOKEN"])
+        header_bar.addWidget(self.hf_token_edit)
 
         content_layout.addLayout(header_bar)
 
@@ -786,11 +799,12 @@ class VLLMManagerGUI(QMainWindow):
 
         cmd_args = self.build_vllm_args()
         cache_path = self.cache_dir_edit.text().strip()
+        hf_token = self.hf_token_edit.text().strip()
 
         self.start_vllm_btn.setEnabled(False)
         self.stop_vllm_btn.setEnabled(True)
 
-        self.vllm_worker = VLLMProcessWorker(cmd_args, cache_path)
+        self.vllm_worker = VLLMProcessWorker(cmd_args, cache_path, hf_token=hf_token)
         self.vllm_worker.log_received.connect(self.append_log)
         self.vllm_worker.status_changed.connect(self.on_vllm_status_change)
         self.vllm_worker.start()
@@ -908,7 +922,8 @@ class VLLMManagerGUI(QMainWindow):
         target_name = selected_filename or repo_id
         self.dl_status_lbl.setText(f"Download Status: Starting download for {target_name}...")
 
-        self.download_worker = HFDownloadWorker(repo_id, cache_dir, selected_filename=selected_filename)
+        hf_token = self.hf_token_edit.text().strip()
+        self.download_worker = HFDownloadWorker(repo_id, cache_dir, selected_filename=selected_filename, hf_token=hf_token)
         self.download_worker.log_signal.connect(self.append_log)
         self.download_worker.progress_signal.connect(self.on_download_progress)
         self.download_worker.finished_signal.connect(self.on_download_finished)
