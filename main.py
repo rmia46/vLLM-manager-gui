@@ -29,7 +29,7 @@ class SolidCard(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Compact Red Header Bar
+        # Header with Obsidian Crimson label-caps typography
         self.header = QLabel()
         self.header.setObjectName("cardHeader")
         if icon_name:
@@ -39,11 +39,11 @@ class SolidCard(QFrame):
         
         self.layout.addWidget(self.header)
 
-        # Content Body Widget with Tight Margins
+        # Layer 1 Body
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
-        self.body_layout.setContentsMargins(8, 8, 8, 8)
-        self.body_layout.setSpacing(6)
+        self.body_layout.setContentsMargins(12, 12, 12, 12)
+        self.body_layout.setSpacing(10)
         self.layout.addWidget(self.body)
 
 class FlagsHelpDialog(QDialog):
@@ -54,10 +54,10 @@ class FlagsHelpDialog(QDialog):
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
         table = QTableWidget(len(VLLM_FLAGS_HELP), 2)
-        table.setHorizontalHeaderLabels(["Flag", "Description"])
+        table.setHorizontalHeaderLabels(["FLAG", "DESCRIPTION"])
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
 
@@ -71,7 +71,7 @@ class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("vLLM Manager")
-        self.resize(1380, 840)
+        self.resize(1380, 850)
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
@@ -106,36 +106,36 @@ class VLLMManagerGUI(QMainWindow):
         main_layout.setSpacing(0)
 
         # -------------------------------------------------------------
-        # COLUMN A: Left Sidebar
+        # COLUMN A: Left Sidebar (Fixed 240px)
         # -------------------------------------------------------------
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(220)
+        sidebar.setFixedWidth(240)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(10, 12, 10, 12)
-        sidebar_layout.setSpacing(6)
+        sidebar_layout.setContentsMargins(12, 16, 12, 16)
+        sidebar_layout.setSpacing(8)
 
-        # Branding Header
+        # Branding Header (Plus Jakarta Sans)
         brand_layout = QHBoxLayout()
-        brand_layout.setSpacing(6)
+        brand_layout.setSpacing(8)
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
         if os.path.exists(logo_path):
             logo_lbl = QLabel()
-            pix = QPixmap(logo_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix = QPixmap(logo_path).scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             logo_lbl.setPixmap(pix)
             brand_layout.addWidget(logo_lbl)
 
         brand_label = QLabel("vLLM Manager")
-        brand_label.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
-        brand_label.setStyleSheet("color: #DC143C; margin-bottom: 0px;")
+        brand_label.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
+        brand_label.setStyleSheet("color: #ffb3b3; margin-bottom: 0px;")
         brand_layout.addWidget(brand_label, 1)
 
         sidebar_layout.addLayout(brand_layout)
-        sidebar_layout.addSpacing(10)
+        sidebar_layout.addSpacing(16)
 
         # Navigation items
         self.nav_server_btn = QPushButton("  Server Manager")
-        self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#94A3B8'))
+        self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ac8888'))
         self.nav_server_btn.setObjectName("navBtn")
         self.nav_server_btn.setCheckable(True)
         self.nav_server_btn.setChecked(True)
@@ -143,7 +143,7 @@ class VLLMManagerGUI(QMainWindow):
         sidebar_layout.addWidget(self.nav_server_btn)
 
         self.nav_browser_btn = QPushButton("  Model Browser")
-        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#94A3B8'))
+        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ac8888'))
         self.nav_browser_btn.setObjectName("navBtn")
         self.nav_browser_btn.setCheckable(True)
         self.nav_browser_btn.clicked.connect(lambda: self.switch_tab(1))
@@ -151,14 +151,14 @@ class VLLMManagerGUI(QMainWindow):
 
         sidebar_layout.addStretch()
 
-        # Engine Quick Status Solid Card
+        # Engine Status Card
         status_card = SolidCard("Engine Status")
         self.vllm_status_lbl = QLabel("STATUS: IDLE")
-        self.vllm_status_lbl.setStyleSheet("font-weight: bold; font-size: 11px; color: #F59E0B;")
+        self.vllm_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-weight: bold; font-size: 11px; color: #ffb4a5;")
         status_card.body_layout.addWidget(self.vllm_status_lbl)
 
         restart_btn = QPushButton("  Restart Engine")
-        restart_btn.setIcon(qta.icon('fa5s.redo-alt', color='#E2E8F0'))
+        restart_btn.setIcon(qta.icon('fa5s.redo-alt', color='#ffb3b3'))
         restart_btn.setObjectName("secondaryBtn")
         restart_btn.clicked.connect(self.stop_vllm)
         status_card.body_layout.addWidget(restart_btn)
@@ -171,28 +171,29 @@ class VLLMManagerGUI(QMainWindow):
         # -------------------------------------------------------------
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
-        content_layout.setContentsMargins(10, 10, 10, 10)
-        content_layout.setSpacing(8)
+        content_layout.setContentsMargins(16, 16, 16, 16)
+        content_layout.setSpacing(12)
 
         # Top Header Bar
         header_bar = QHBoxLayout()
-        header_bar.setSpacing(8)
+        header_bar.setSpacing(10)
         header_title = QLabel("vLLM Manager")
-        header_title.setFont(QFont("Plus Jakarta Sans", 15, QFont.Bold))
-        header_title.setStyleSheet("color: #E2E8F0;")
+        header_title.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
+        header_title.setStyleSheet("color: #e5e2e1;")
         header_bar.addWidget(header_title)
 
         header_bar.addStretch()
 
         cache_label = QLabel("HF Cache:")
+        cache_label.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 11px; font-weight: 700; color: #ac8888;")
         header_bar.addWidget(cache_label)
 
         self.cache_dir_edit = QLineEdit(self.current_cache_dir)
-        self.cache_dir_edit.setFixedWidth(220)
+        self.cache_dir_edit.setFixedWidth(240)
         header_bar.addWidget(self.cache_dir_edit)
 
         browse_dir_btn = QPushButton("Browse")
-        browse_dir_btn.setIcon(qta.icon('fa5s.folder-open', color='#E2E8F0'))
+        browse_dir_btn.setIcon(qta.icon('fa5s.folder-open', color='#ffb3b3'))
         browse_dir_btn.setObjectName("secondaryBtn")
         browse_dir_btn.clicked.connect(self.select_cache_directory)
         header_bar.addWidget(browse_dir_btn)
@@ -206,13 +207,13 @@ class VLLMManagerGUI(QMainWindow):
         server_view = QWidget()
         server_layout = QVBoxLayout(server_view)
         server_layout.setContentsMargins(0, 0, 0, 0)
-        server_layout.setSpacing(8)
+        server_layout.setSpacing(12)
 
-        # Primary Action & System Resource Monitor Card (Red Header)
+        # Primary Action Card
         hero_card = SolidCard("Primary Action & System Monitor")
         
         hero_top = QHBoxLayout()
-        hero_top.setSpacing(8)
+        hero_top.setSpacing(10)
 
         hero_top.addWidget(QLabel("Select Model:"))
         self.model_combo = QComboBox()
@@ -221,20 +222,20 @@ class VLLMManagerGUI(QMainWindow):
         hero_top.addWidget(self.model_combo, 1)
 
         refresh_btn = QPushButton()
-        refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#E2E8F0'))
-        refresh_btn.setFixedWidth(32)
+        refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#ffb3b3'))
+        refresh_btn.setFixedWidth(36)
         refresh_btn.setToolTip("Rescan local models")
         refresh_btn.clicked.connect(self.refresh_models)
         hero_top.addWidget(refresh_btn)
 
         self.start_vllm_btn = QPushButton("  Launch Server")
-        self.start_vllm_btn.setIcon(qta.icon('fa5s.play', color='#FFFFFF'))
+        self.start_vllm_btn.setIcon(qta.icon('fa5s.play', color='#ffffff'))
         self.start_vllm_btn.setObjectName("primaryBtn")
         self.start_vllm_btn.clicked.connect(self.start_vllm)
         hero_top.addWidget(self.start_vllm_btn)
 
         self.stop_vllm_btn = QPushButton("  Stop Server")
-        self.stop_vllm_btn.setIcon(qta.icon('fa5s.stop', color='#FFFFFF'))
+        self.stop_vllm_btn.setIcon(qta.icon('fa5s.stop', color='#ffffff'))
         self.stop_vllm_btn.setObjectName("stopBtn")
         self.stop_vllm_btn.setEnabled(False)
         self.stop_vllm_btn.clicked.connect(self.stop_vllm)
@@ -242,15 +243,15 @@ class VLLMManagerGUI(QMainWindow):
 
         hero_card.body_layout.addLayout(hero_top)
 
-        # Live Resource Gauges Inside Hero Card
+        # System Resource Gauges Inside Hero Card
         gauges_row = QHBoxLayout()
-        gauges_row.setSpacing(12)
+        gauges_row.setSpacing(14)
 
         # CPU Usage Bar
         cpu_col = QVBoxLayout()
-        cpu_col.setSpacing(1)
-        self.cpu_label = QLabel("CPU Usage: 0%")
-        self.cpu_label.setStyleSheet("font-size: 10px; font-weight: 600; color: #94A3B8;")
+        cpu_col.setSpacing(2)
+        self.cpu_label = QLabel("CPU USAGE: 0%")
+        self.cpu_label.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ac8888;")
         self.cpu_bar = QProgressBar()
         self.cpu_bar.setValue(0)
         cpu_col.addWidget(self.cpu_label)
@@ -259,9 +260,9 @@ class VLLMManagerGUI(QMainWindow):
 
         # RAM Usage Bar
         ram_col = QVBoxLayout()
-        ram_col.setSpacing(1)
-        self.ram_label = QLabel("RAM Usage: 0 GB / 0 GB")
-        self.ram_label.setStyleSheet("font-size: 10px; font-weight: 600; color: #94A3B8;")
+        ram_col.setSpacing(2)
+        self.ram_label = QLabel("RAM USAGE: 0 GB / 0 GB")
+        self.ram_label.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ac8888;")
         self.ram_bar = QProgressBar()
         self.ram_bar.setValue(0)
         ram_col.addWidget(self.ram_label)
@@ -271,10 +272,10 @@ class VLLMManagerGUI(QMainWindow):
         hero_card.body_layout.addLayout(gauges_row)
         server_layout.addWidget(hero_card)
 
-        # Compact Symmetric Grid Config Panel (Red Header)
+        # Compact Symmetric Grid Config Panel
         vllm_card = SolidCard("Server Configuration Parameters")
         grid = QGridLayout()
-        grid.setSpacing(6)
+        grid.setSpacing(8)
 
         # Row 0: Port & Quantization
         self.port_spin = QSpinBox()
@@ -321,12 +322,12 @@ class VLLMManagerGUI(QMainWindow):
         extra_container = QWidget()
         e_layout = QHBoxLayout(extra_container)
         e_layout.setContentsMargins(0, 0, 0, 0)
-        e_layout.setSpacing(4)
+        e_layout.setSpacing(6)
         self.extra_flags_edit = QLineEdit()
         self.extra_flags_edit.setPlaceholderText("e.g. --trust-remote-code --dtype float16")
         e_layout.addWidget(self.extra_flags_edit, 1)
         flags_help_btn = QPushButton(" Flags Info")
-        flags_help_btn.setIcon(qta.icon('fa5s.question-circle', color='#E2E8F0'))
+        flags_help_btn.setIcon(qta.icon('fa5s.question-circle', color='#ffb3b3'))
         flags_help_btn.setObjectName("secondaryBtn")
         flags_help_btn.clicked.connect(self.show_flags_help)
         e_layout.addWidget(flags_help_btn)
@@ -342,14 +343,14 @@ class VLLMManagerGUI(QMainWindow):
         browser_view = QWidget()
         browser_layout = QVBoxLayout(browser_view)
         browser_layout.setContentsMargins(0, 0, 0, 0)
-        browser_layout.setSpacing(8)
+        browser_layout.setSpacing(10)
 
         filter_card = SolidCard("Browse & Filter Models")
         filter_layout = QVBoxLayout()
-        filter_layout.setSpacing(6)
+        filter_layout.setSpacing(8)
 
         frow1 = QHBoxLayout()
-        frow1.setSpacing(8)
+        frow1.setSpacing(10)
         frow1.addWidget(QLabel("Family:"))
         self.family_combo = QComboBox()
         self.family_combo.addItems(["All", "Qwen", "Llama", "DeepSeek", "Mistral", "Phi", "Gemma"])
@@ -370,7 +371,7 @@ class VLLMManagerGUI(QMainWindow):
         filter_layout.addLayout(frow1)
 
         frow2 = QHBoxLayout()
-        frow2.setSpacing(8)
+        frow2.setSpacing(10)
         self.vram_filter_cb = QCheckBox("Filter Max GPU VRAM (GB):")
         self.vram_filter_cb.stateChanged.connect(self.browse_hf_models)
         frow2.addWidget(self.vram_filter_cb)
@@ -388,7 +389,7 @@ class VLLMManagerGUI(QMainWindow):
         frow2.addWidget(self.search_edit, 1)
 
         apply_btn = QPushButton("  Apply")
-        apply_btn.setIcon(qta.icon('fa5s.search', color='#E2E8F0'))
+        apply_btn.setIcon(qta.icon('fa5s.search', color='#ffb3b3'))
         apply_btn.setObjectName("secondaryBtn")
         apply_btn.clicked.connect(self.browse_hf_models)
         frow2.addWidget(apply_btn)
@@ -398,16 +399,16 @@ class VLLMManagerGUI(QMainWindow):
         browser_layout.addWidget(filter_card)
 
         self.hf_results_table = QTableWidget(0, 5)
-        self.hf_results_table.setHorizontalHeaderLabels(["Model Repo ID", "Params", "Est. VRAM (FP16)", "Downloads", "Likes"])
+        self.hf_results_table.setHorizontalHeaderLabels(["MODEL REPO ID", "PARAMS", "EST. VRAM (FP16)", "DOWNLOADS", "LIKES"])
         self.hf_results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.hf_results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.hf_results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         browser_layout.addWidget(self.hf_results_table)
 
         dl_row = QHBoxLayout()
-        dl_row.setSpacing(8)
+        dl_row.setSpacing(10)
         self.dl_btn = QPushButton("  Download Selected Model to Cache")
-        self.dl_btn.setIcon(qta.icon('fa5s.download', color='#FFFFFF'))
+        self.dl_btn.setIcon(qta.icon('fa5s.download', color='#ffffff'))
         self.dl_btn.setObjectName("primaryBtn")
         self.dl_btn.clicked.connect(self.download_selected_model)
         dl_row.addWidget(self.dl_btn)
@@ -422,11 +423,11 @@ class VLLMManagerGUI(QMainWindow):
         # COLUMN C: Right Control Dock
         # -------------------------------------------------------------
         right_dock = QFrame()
-        right_dock.setFixedWidth(320)
-        right_dock.setStyleSheet("background-color: #121418; border-left: 1px solid #1E2228;")
+        right_dock.setFixedWidth(340)
+        right_dock.setStyleSheet("background-color: #121212; border-left: 1px solid #2A2A2A;")
         right_layout = QVBoxLayout(right_dock)
-        right_layout.setContentsMargins(10, 12, 10, 12)
-        right_layout.setSpacing(8)
+        right_layout.setContentsMargins(12, 16, 12, 16)
+        right_layout.setSpacing(10)
 
         # Solid Card 1: Open WebUI Integration
         webui_card = SolidCard("Open WebUI Integration")
@@ -435,13 +436,13 @@ class VLLMManagerGUI(QMainWindow):
         webui_card.body_layout.addWidget(self.docker_status_lbl)
 
         open_browser_btn = QPushButton("  Open WebUI (localhost:8080)")
-        open_browser_btn.setIcon(qta.icon('fa5s.external-link-alt', color='#FFFFFF'))
+        open_browser_btn.setIcon(qta.icon('fa5s.external-link-alt', color='#ffffff'))
         open_browser_btn.setObjectName("primaryBtn")
         open_browser_btn.clicked.connect(lambda: webbrowser.open("http://localhost:8080"))
         webui_card.body_layout.addWidget(open_browser_btn)
 
         self.toggle_docker_btn = QPushButton("  Start Container")
-        self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#E2E8F0'))
+        self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#ffb3b3'))
         self.toggle_docker_btn.setObjectName("secondaryBtn")
         self.toggle_docker_btn.clicked.connect(self.toggle_docker)
         webui_card.body_layout.addWidget(self.toggle_docker_btn)
@@ -466,21 +467,21 @@ class VLLMManagerGUI(QMainWindow):
     def update_system_stats(self):
         cpu = psutil.cpu_percent()
         self.cpu_bar.setValue(int(cpu))
-        self.cpu_label.setText(f"CPU Usage: {cpu:.1f}%")
+        self.cpu_label.setText(f"CPU USAGE: {cpu:.1f}%")
 
         ram = psutil.virtual_memory()
         ram_used_gb = ram.used / (1024 ** 3)
         ram_total_gb = ram.total / (1024 ** 3)
         self.ram_bar.setValue(int(ram.percent))
-        self.ram_label.setText(f"RAM Usage: {ram_used_gb:.1f} GB / {ram_total_gb:.1f} GB")
+        self.ram_label.setText(f"RAM USAGE: {ram_used_gb:.1f} GB / {ram_total_gb:.1f} GB")
 
     def switch_tab(self, index):
         self.stack.setCurrentIndex(index)
         self.nav_server_btn.setChecked(index == 0)
         self.nav_browser_btn.setChecked(index == 1)
 
-        self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#DC143C' if index == 0 else '#94A3B8'))
-        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#DC143C' if index == 1 else '#94A3B8'))
+        self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ffb3b3' if index == 0 else '#ac8888'))
+        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 1 else '#ac8888'))
 
     def select_cache_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select HF Cache Directory", self.current_cache_dir)
@@ -548,9 +549,9 @@ class VLLMManagerGUI(QMainWindow):
     def on_vllm_status_change(self, status):
         self.vllm_status_lbl.setText(f"STATUS: {status}")
         if status == "RUNNING":
-            self.vllm_status_lbl.setStyleSheet("font-weight: bold; font-size: 11px; color: #10B981;")
+            self.vllm_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-weight: bold; font-size: 11px; color: #ffb3b3;")
         elif status in ["STOPPED", "IDLE", "ERROR"]:
-            self.vllm_status_lbl.setStyleSheet("font-weight: bold; font-size: 11px; color: #EF4444;")
+            self.vllm_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-weight: bold; font-size: 11px; color: #ffb4ab;")
             self.start_vllm_btn.setEnabled(True)
             self.stop_vllm_btn.setEnabled(False)
 
@@ -561,14 +562,14 @@ class VLLMManagerGUI(QMainWindow):
         status = check_open_webui_status()
         if status["container_running"]:
             self.docker_status_lbl.setText(f"Container: RUNNING\n({status['status_text']})")
-            self.docker_status_lbl.setStyleSheet("color: #10B981; font-weight: 600;")
+            self.docker_status_lbl.setStyleSheet("color: #ffb3b3; font-weight: 600;")
             self.toggle_docker_btn.setText("  Stop Container")
-            self.toggle_docker_btn.setIcon(qta.icon('fa5s.stop-circle', color='#E2E8F0'))
+            self.toggle_docker_btn.setIcon(qta.icon('fa5s.stop-circle', color='#ffb3b3'))
         else:
             self.docker_status_lbl.setText(f"Container: STOPPED")
-            self.docker_status_lbl.setStyleSheet("color: #EF4444; font-weight: 600;")
+            self.docker_status_lbl.setStyleSheet("color: #ffb4ab; font-weight: 600;")
             self.toggle_docker_btn.setText("  Start Container")
-            self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#E2E8F0'))
+            self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#ffb3b3'))
 
     def toggle_docker(self):
         status = check_open_webui_status()
