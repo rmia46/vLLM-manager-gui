@@ -33,24 +33,25 @@ QPushButton#navBtn:checked {
     border-left: 3px solid #DC143C;
 }
 
-/* Solid Panel Card Containers (No outlines cut through text) */
+/* Solid Panel Card Containers */
 QFrame#panelCard {
     background-color: #121418;
     border: 1px solid #1E2228;
-    border-radius: 8px;
+    border-radius: 6px;
 }
 
-/* Solid Header Bar for Groups */
+/* Compact Red Crimson Solid Header Bar */
 QLabel#cardHeader {
-    background-color: #1A1D24;
-    color: #F8FAFC;
+    background-color: #991B1B;
+    color: #FFFFFF;
     font-weight: 700;
     font-size: 11px;
-    padding: 6px 12px;
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
-    border-bottom: 1px solid #1E2228;
+    padding: 3px 10px;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom: 1px solid #DC143C;
     letter-spacing: 0.5px;
+    max-height: 18px;
 }
 
 /* Inputs & Selects */
@@ -116,6 +117,7 @@ QProgressBar {
     color: #F8FAFC;
     font-size: 10px;
     font-weight: bold;
+    max-height: 14px;
 }
 QProgressBar::chunk {
     background-color: #DC143C;

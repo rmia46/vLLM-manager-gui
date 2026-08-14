@@ -29,22 +29,21 @@ class SolidCard(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Solid Title Header Bar
+        # Compact Red Header Bar
         self.header = QLabel()
         self.header.setObjectName("cardHeader")
         if icon_name:
-            icon = qta.icon(icon_name, color='#DC143C')
             self.header.setText(f"   {title_text.upper()}")
         else:
             self.header.setText(title_text.upper())
         
         self.layout.addWidget(self.header)
 
-        # Content Body Widget
+        # Content Body Widget with Tight Margins
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
-        self.body_layout.setContentsMargins(12, 12, 12, 12)
-        self.body_layout.setSpacing(10)
+        self.body_layout.setContentsMargins(8, 8, 8, 8)
+        self.body_layout.setSpacing(6)
         self.layout.addWidget(self.body)
 
 class FlagsHelpDialog(QDialog):
@@ -55,8 +54,8 @@ class FlagsHelpDialog(QDialog):
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
         table = QTableWidget(len(VLLM_FLAGS_HELP), 2)
         table.setHorizontalHeaderLabels(["Flag", "Description"])
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -72,7 +71,7 @@ class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("vLLM Manager")
-        self.resize(1380, 860)
+        self.resize(1380, 840)
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
@@ -113,26 +112,26 @@ class VLLMManagerGUI(QMainWindow):
         sidebar.setObjectName("sidebar")
         sidebar.setFixedWidth(220)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(12, 14, 12, 14)
-        sidebar_layout.setSpacing(8)
+        sidebar_layout.setContentsMargins(10, 12, 10, 12)
+        sidebar_layout.setSpacing(6)
 
         # Branding Header
         brand_layout = QHBoxLayout()
-        brand_layout.setSpacing(8)
+        brand_layout.setSpacing(6)
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
         if os.path.exists(logo_path):
             logo_lbl = QLabel()
-            pix = QPixmap(logo_path).scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix = QPixmap(logo_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             logo_lbl.setPixmap(pix)
             brand_layout.addWidget(logo_lbl)
 
         brand_label = QLabel("vLLM Manager")
-        brand_label.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
+        brand_label.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
         brand_label.setStyleSheet("color: #DC143C; margin-bottom: 0px;")
         brand_layout.addWidget(brand_label, 1)
 
         sidebar_layout.addLayout(brand_layout)
-        sidebar_layout.addSpacing(14)
+        sidebar_layout.addSpacing(10)
 
         # Navigation items
         self.nav_server_btn = QPushButton("  Server Manager")
@@ -172,14 +171,14 @@ class VLLMManagerGUI(QMainWindow):
         # -------------------------------------------------------------
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
-        content_layout.setContentsMargins(14, 14, 14, 14)
-        content_layout.setSpacing(12)
+        content_layout.setContentsMargins(10, 10, 10, 10)
+        content_layout.setSpacing(8)
 
         # Top Header Bar
         header_bar = QHBoxLayout()
-        header_bar.setSpacing(10)
+        header_bar.setSpacing(8)
         header_title = QLabel("vLLM Manager")
-        header_title.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
+        header_title.setFont(QFont("Plus Jakarta Sans", 15, QFont.Bold))
         header_title.setStyleSheet("color: #E2E8F0;")
         header_bar.addWidget(header_title)
 
@@ -189,7 +188,7 @@ class VLLMManagerGUI(QMainWindow):
         header_bar.addWidget(cache_label)
 
         self.cache_dir_edit = QLineEdit(self.current_cache_dir)
-        self.cache_dir_edit.setFixedWidth(240)
+        self.cache_dir_edit.setFixedWidth(220)
         header_bar.addWidget(self.cache_dir_edit)
 
         browse_dir_btn = QPushButton("Browse")
@@ -207,13 +206,13 @@ class VLLMManagerGUI(QMainWindow):
         server_view = QWidget()
         server_layout = QVBoxLayout(server_view)
         server_layout.setContentsMargins(0, 0, 0, 0)
-        server_layout.setSpacing(12)
+        server_layout.setSpacing(8)
 
-        # Rich Primary Action & System Resource Monitor Card (Filled Top Bar)
+        # Primary Action & System Resource Monitor Card (Red Header)
         hero_card = SolidCard("Primary Action & System Monitor")
         
         hero_top = QHBoxLayout()
-        hero_top.setSpacing(10)
+        hero_top.setSpacing(8)
 
         hero_top.addWidget(QLabel("Select Model:"))
         self.model_combo = QComboBox()
@@ -223,7 +222,7 @@ class VLLMManagerGUI(QMainWindow):
 
         refresh_btn = QPushButton()
         refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#E2E8F0'))
-        refresh_btn.setFixedWidth(36)
+        refresh_btn.setFixedWidth(32)
         refresh_btn.setToolTip("Rescan local models")
         refresh_btn.clicked.connect(self.refresh_models)
         hero_top.addWidget(refresh_btn)
@@ -245,13 +244,13 @@ class VLLMManagerGUI(QMainWindow):
 
         # Live Resource Gauges Inside Hero Card
         gauges_row = QHBoxLayout()
-        gauges_row.setSpacing(16)
+        gauges_row.setSpacing(12)
 
         # CPU Usage Bar
         cpu_col = QVBoxLayout()
-        cpu_col.setSpacing(2)
+        cpu_col.setSpacing(1)
         self.cpu_label = QLabel("CPU Usage: 0%")
-        self.cpu_label.setStyleSheet("font-size: 11px; font-weight: 600; color: #94A3B8;")
+        self.cpu_label.setStyleSheet("font-size: 10px; font-weight: 600; color: #94A3B8;")
         self.cpu_bar = QProgressBar()
         self.cpu_bar.setValue(0)
         cpu_col.addWidget(self.cpu_label)
@@ -260,9 +259,9 @@ class VLLMManagerGUI(QMainWindow):
 
         # RAM Usage Bar
         ram_col = QVBoxLayout()
-        ram_col.setSpacing(2)
+        ram_col.setSpacing(1)
         self.ram_label = QLabel("RAM Usage: 0 GB / 0 GB")
-        self.ram_label.setStyleSheet("font-size: 11px; font-weight: 600; color: #94A3B8;")
+        self.ram_label.setStyleSheet("font-size: 10px; font-weight: 600; color: #94A3B8;")
         self.ram_bar = QProgressBar()
         self.ram_bar.setValue(0)
         ram_col.addWidget(self.ram_label)
@@ -272,10 +271,10 @@ class VLLMManagerGUI(QMainWindow):
         hero_card.body_layout.addLayout(gauges_row)
         server_layout.addWidget(hero_card)
 
-        # Compact Symmetric Grid Config Panel (Solid Header)
+        # Compact Symmetric Grid Config Panel (Red Header)
         vllm_card = SolidCard("Server Configuration Parameters")
         grid = QGridLayout()
-        grid.setSpacing(10)
+        grid.setSpacing(6)
 
         # Row 0: Port & Quantization
         self.port_spin = QSpinBox()
@@ -322,7 +321,7 @@ class VLLMManagerGUI(QMainWindow):
         extra_container = QWidget()
         e_layout = QHBoxLayout(extra_container)
         e_layout.setContentsMargins(0, 0, 0, 0)
-        e_layout.setSpacing(6)
+        e_layout.setSpacing(4)
         self.extra_flags_edit = QLineEdit()
         self.extra_flags_edit.setPlaceholderText("e.g. --trust-remote-code --dtype float16")
         e_layout.addWidget(self.extra_flags_edit, 1)
@@ -343,14 +342,14 @@ class VLLMManagerGUI(QMainWindow):
         browser_view = QWidget()
         browser_layout = QVBoxLayout(browser_view)
         browser_layout.setContentsMargins(0, 0, 0, 0)
-        browser_layout.setSpacing(10)
+        browser_layout.setSpacing(8)
 
         filter_card = SolidCard("Browse & Filter Models")
         filter_layout = QVBoxLayout()
-        filter_layout.setSpacing(10)
+        filter_layout.setSpacing(6)
 
         frow1 = QHBoxLayout()
-        frow1.setSpacing(10)
+        frow1.setSpacing(8)
         frow1.addWidget(QLabel("Family:"))
         self.family_combo = QComboBox()
         self.family_combo.addItems(["All", "Qwen", "Llama", "DeepSeek", "Mistral", "Phi", "Gemma"])
@@ -371,7 +370,7 @@ class VLLMManagerGUI(QMainWindow):
         filter_layout.addLayout(frow1)
 
         frow2 = QHBoxLayout()
-        frow2.setSpacing(10)
+        frow2.setSpacing(8)
         self.vram_filter_cb = QCheckBox("Filter Max GPU VRAM (GB):")
         self.vram_filter_cb.stateChanged.connect(self.browse_hf_models)
         frow2.addWidget(self.vram_filter_cb)
@@ -406,7 +405,7 @@ class VLLMManagerGUI(QMainWindow):
         browser_layout.addWidget(self.hf_results_table)
 
         dl_row = QHBoxLayout()
-        dl_row.setSpacing(10)
+        dl_row.setSpacing(8)
         self.dl_btn = QPushButton("  Download Selected Model to Cache")
         self.dl_btn.setIcon(qta.icon('fa5s.download', color='#FFFFFF'))
         self.dl_btn.setObjectName("primaryBtn")
@@ -423,11 +422,11 @@ class VLLMManagerGUI(QMainWindow):
         # COLUMN C: Right Control Dock
         # -------------------------------------------------------------
         right_dock = QFrame()
-        right_dock.setFixedWidth(340)
+        right_dock.setFixedWidth(320)
         right_dock.setStyleSheet("background-color: #121418; border-left: 1px solid #1E2228;")
         right_layout = QVBoxLayout(right_dock)
-        right_layout.setContentsMargins(12, 14, 12, 14)
-        right_layout.setSpacing(10)
+        right_layout.setContentsMargins(10, 12, 10, 12)
+        right_layout.setSpacing(8)
 
         # Solid Card 1: Open WebUI Integration
         webui_card = SolidCard("Open WebUI Integration")
@@ -465,12 +464,10 @@ class VLLMManagerGUI(QMainWindow):
         main_layout.addWidget(right_dock)
 
     def update_system_stats(self):
-        # Update CPU
         cpu = psutil.cpu_percent()
         self.cpu_bar.setValue(int(cpu))
         self.cpu_label.setText(f"CPU Usage: {cpu:.1f}%")
 
-        # Update RAM
         ram = psutil.virtual_memory()
         ram_used_gb = ram.used / (1024 ** 3)
         ram_total_gb = ram.total / (1024 ** 3)
