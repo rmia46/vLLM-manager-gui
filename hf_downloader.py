@@ -139,11 +139,12 @@ class HFDownloadWorker(QThread):
 
     def run(self):
         self.log_signal.emit(f"Starting download for '{self.repo_id}' into '{self.hf_cache_dir}'...\n")
-        self.progress_signal.emit(0, f"Downloading {self.repo_id}...")
+        self.progress_signal.emit(0, f"Downloading {self.repo_id} (Initializing...)")
 
         python_script = (
             "import os, sys\n"
             "os.environ['PYTHONUNBUFFERED'] = '1'\n"
+            "os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '0'\n"
             "from huggingface_hub import snapshot_download\n"
             "try:\n"
             f"    snapshot_download(repo_id='{self.repo_id}', cache_dir='{self.hf_cache_dir}')\n"
@@ -155,6 +156,7 @@ class HFDownloadWorker(QThread):
 
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
+        env["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
 
         try:
             self.process = subprocess.Popen(
@@ -166,39 +168,49 @@ class HFDownloadWorker(QThread):
                 env=env
             )
 
-            # Read stderr line-by-line where tqdm progress bars (speed, ETA, MB/s, %) are emitted by huggingface_hub
-            percent = 0
-            speed_str = "Downloading..."
+            # Read stderr character-by-character to parse tqdm carriage returns '\r'
+            buffer = ""
+            current_percent = 0
 
-            for line in iter(self.process.stderr.readline, ''):
-                if not line or self.is_cancelled:
+            while True:
+                if self.is_cancelled:
                     break
-                
-                self.log_signal.emit(line)
 
-                # Parse tqdm progress line: e.g. " 45%|████▌     | 1.2G/2.5G [00:12<00:15, 85.2MB/s]"
-                # Match percentage
-                p_match = re.search(r'(\d+)%', line)
-                if p_match:
-                    percent = int(p_match.group(1))
+                char = self.process.stderr.read(1)
+                if not char:
+                    # Check process state
+                    if self.process.poll() is not None:
+                        break
+                    continue
 
-                # Match tqdm speed & downloaded size info [00:12<00:15, 85.2MB/s] or 1.2G/2.5G
-                size_match = re.search(r'([\d\.]+[kMG]B?/s|[\d\.]+[kMG]B?/s)', line)
-                ratio_match = re.search(r'([\d\.]+[kMGT]?B/|\d+/\d+)', line)
-                
-                info_parts = []
-                if ratio_match:
-                    info_parts.append(ratio_match.group(0))
-                if size_match:
-                    info_parts.append(size_match.group(0))
+                if char in ['\r', '\n']:
+                    line = buffer.strip()
+                    buffer = ""
 
-                if info_parts:
-                    speed_str = " | ".join(info_parts)
+                    if line:
+                        self.log_signal.emit(line + "\n")
 
-                status_msg = f"Downloading {self.repo_id} ({percent}%) [{speed_str}]"
-                self.progress_signal.emit(percent, status_msg)
+                        # Parse tqdm percentage: e.g. " 45%|████▌     | 1.2G/2.5G [00:12<00:15, 85.2MB/s]"
+                        p_match = re.search(r'(\d+)%', line)
+                        if p_match:
+                            current_percent = int(p_match.group(1))
 
-            self.process.stderr.close()
+                        # Parse file count ratio or size ratio: e.g. 15/33 or 1.2G/2.5G or 85.2MB/s
+                        ratio_match = re.search(r'(\d+/\d+|[\d\.]+[kMGT]?B/[\d\.]+[kMGT]?B)', line)
+                        speed_match = re.search(r'([\d\.]+[kMGT]?B/s)', line)
+
+                        info_parts = []
+                        if ratio_match:
+                            info_parts.append(ratio_match.group(0))
+                        if speed_match:
+                            info_parts.append(speed_match.group(0))
+
+                        speed_str = " | ".join(info_parts) if info_parts else "Downloading files..."
+                        status_msg = f"Downloading {self.repo_id} ({current_percent}%) [{speed_str}]"
+                        self.progress_signal.emit(current_percent, status_msg)
+                else:
+                    buffer += char
+
             return_code = self.process.wait()
 
             if self.is_cancelled:
