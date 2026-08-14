@@ -21,6 +21,8 @@ from hf_downloader import HFBrowserWorker, HFDownloadWorker
 from vllm_flags_info import VLLM_FLAGS_HELP
 from stitch_theme import STITCH_DARK_STYLESHEET
 
+VENV_VLLM = "/data/rspace/codespace/libs/python_env/3.12/.venv/bin/vllm"
+
 class SolidCard(QFrame):
     def __init__(self, title_text, icon_name=None):
         super().__init__()
@@ -209,8 +211,8 @@ class VLLMManagerGUI(QMainWindow):
         server_layout.setContentsMargins(0, 0, 0, 0)
         server_layout.setSpacing(12)
 
-        # Primary Action Card
-        hero_card = SolidCard("Primary Action & System Monitor")
+        # Rich Primary Action & System Resource Monitor Card
+        hero_card = SolidCard("Primary Action & System Environment Monitor")
         
         hero_top = QHBoxLayout()
         hero_top.setSpacing(10)
@@ -221,11 +223,10 @@ class VLLMManagerGUI(QMainWindow):
         self.refresh_models()
         hero_top.addWidget(self.model_combo, 1)
 
-        # Redesigned Rescan Button (Theme-aligned secondary ghost icon button)
         refresh_btn = QPushButton("  Rescan")
         refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#ffb3b3'))
         refresh_btn.setObjectName("secondaryBtn")
-        refresh_btn.setToolTip("Rescan local models in HF cache")
+        refresh_btn.setToolTip("Rescan local models")
         refresh_btn.clicked.connect(self.refresh_models)
         hero_top.addWidget(refresh_btn)
 
@@ -244,11 +245,11 @@ class VLLMManagerGUI(QMainWindow):
 
         hero_card.body_layout.addLayout(hero_top)
 
-        # System Resource Gauges Inside Hero Card
-        gauges_row = QHBoxLayout()
-        gauges_row.setSpacing(14)
+        # System & Environment Gauges Grid
+        env_grid = QGridLayout()
+        env_grid.setSpacing(10)
 
-        # CPU Usage Bar
+        # Gauges
         cpu_col = QVBoxLayout()
         cpu_col.setSpacing(2)
         self.cpu_label = QLabel("CPU USAGE: 0%")
@@ -257,9 +258,8 @@ class VLLMManagerGUI(QMainWindow):
         self.cpu_bar.setValue(0)
         cpu_col.addWidget(self.cpu_label)
         cpu_col.addWidget(self.cpu_bar)
-        gauges_row.addLayout(cpu_col, 1)
+        env_grid.addLayout(cpu_col, 0, 0)
 
-        # RAM Usage Bar
         ram_col = QVBoxLayout()
         ram_col.setSpacing(2)
         self.ram_label = QLabel("RAM USAGE: 0 GB / 0 GB")
@@ -268,9 +268,25 @@ class VLLMManagerGUI(QMainWindow):
         self.ram_bar.setValue(0)
         ram_col.addWidget(self.ram_label)
         ram_col.addWidget(self.ram_bar)
-        gauges_row.addLayout(ram_col, 1)
+        env_grid.addLayout(ram_col, 0, 1)
 
-        hero_card.body_layout.addLayout(gauges_row)
+        # Environment Readiness Status Badges
+        vllm_installed = os.path.exists(VENV_VLLM)
+        self.vllm_env_lbl = QLabel(f"vLLM Engine: {' INSTALLED' if vllm_installed else ' NOT FOUND'}")
+        self.vllm_env_lbl.setStyleSheet(f"font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: {'#ffb3b3' if vllm_installed else '#ffb4ab'};")
+
+        self.webui_env_lbl = QLabel("Open WebUI: CHECKING...")
+        self.webui_env_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ac8888;")
+
+        env_status_row = QHBoxLayout()
+        env_status_row.setSpacing(14)
+        env_status_row.addWidget(self.vllm_env_lbl)
+        env_status_row.addWidget(self.webui_env_lbl)
+        env_status_row.addStretch()
+
+        env_grid.addLayout(env_status_row, 1, 0, 1, 2)
+        hero_card.body_layout.addLayout(env_grid)
+
         server_layout.addWidget(hero_card)
 
         # Compact Symmetric Grid Config Panel
@@ -482,7 +498,7 @@ class VLLMManagerGUI(QMainWindow):
         self.nav_browser_btn.setChecked(index == 1)
 
         self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ffb3b3' if index == 0 else '#ac8888'))
-        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 1 else '#ac8888'))
+        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 0 else '#ac8888'))
 
     def select_cache_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select HF Cache Directory", self.current_cache_dir)
@@ -567,11 +583,15 @@ class VLLMManagerGUI(QMainWindow):
         if status["container_running"]:
             self.docker_status_lbl.setText(f"Container: RUNNING\n({status['status_text']})")
             self.docker_status_lbl.setStyleSheet("color: #ffb3b3; font-weight: 600;")
+            self.webui_env_lbl.setText("Open WebUI: READY (Docker Active)")
+            self.webui_env_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3;")
             self.toggle_docker_btn.setText("  Stop Container")
             self.toggle_docker_btn.setIcon(qta.icon('fa5s.stop-circle', color='#ffb3b3'))
         else:
             self.docker_status_lbl.setText(f"Container: STOPPED")
             self.docker_status_lbl.setStyleSheet("color: #ffb4ab; font-weight: 600;")
+            self.webui_env_lbl.setText("Open WebUI: CONTAINER STOPPED")
+            self.webui_env_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb4ab;")
             self.toggle_docker_btn.setText("  Start Container")
             self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#ffb3b3'))
 
