@@ -24,10 +24,12 @@ class FlagsHelpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("vLLM Command Line Flags Help")
-        self.resize(720, 520)
+        self.resize(760, 540)
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
         table = QTableWidget(len(VLLM_FLAGS_HELP), 2)
         table.setHorizontalHeaderLabels(["Flag", "Description"])
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
@@ -43,7 +45,7 @@ class VLLMManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("vLLM Manager")
-        self.resize(1280, 850)
+        self.resize(1300, 880)
         self.setStyleSheet(STITCH_DARK_STYLESHEET)
 
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
@@ -72,18 +74,18 @@ class VLLMManagerGUI(QMainWindow):
         main_layout.setSpacing(0)
 
         # -------------------------------------------------------------
-        # Left Sidebar (Standard UI scale, extra large title & logo)
+        # Left Sidebar (Clean, spacious layout)
         # -------------------------------------------------------------
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(260)
+        sidebar.setFixedWidth(270)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(12, 16, 12, 16)
-        sidebar_layout.setSpacing(8)
+        sidebar_layout.setContentsMargins(16, 22, 16, 22)
+        sidebar_layout.setSpacing(12)
 
-        # Extra Large Title & Logo Branding Header
+        # Large Title & Logo Branding Header
         brand_layout = QHBoxLayout()
-        brand_layout.setSpacing(10)
+        brand_layout.setSpacing(12)
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
         if os.path.exists(logo_path):
             logo_lbl = QLabel()
@@ -97,9 +99,9 @@ class VLLMManagerGUI(QMainWindow):
         brand_layout.addWidget(brand_label, 1)
 
         sidebar_layout.addLayout(brand_layout)
-        sidebar_layout.addSpacing(20)
+        sidebar_layout.addSpacing(24)
 
-        # Standard Size Navigation buttons
+        # Navigation buttons with generous margins
         self.nav_server_btn = QPushButton("  Server Manager")
         self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ac8888'))
         self.nav_server_btn.setObjectName("navBtn")
@@ -131,10 +133,12 @@ class VLLMManagerGUI(QMainWindow):
         # -------------------------------------------------------------
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
-        content_layout.setContentsMargins(16, 16, 16, 16)
+        content_layout.setContentsMargins(22, 22, 22, 22)
+        content_layout.setSpacing(18)
 
         # Top Header Status Bar
         header_bar = QHBoxLayout()
+        header_bar.setSpacing(14)
         header_title = QLabel("vLLM Manager")
         header_title.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
         header_title.setStyleSheet("color: #e5e2e1;")
@@ -146,7 +150,7 @@ class VLLMManagerGUI(QMainWindow):
         header_bar.addWidget(cache_label)
 
         self.cache_dir_edit = QLineEdit(self.current_cache_dir)
-        self.cache_dir_edit.setFixedWidth(260)
+        self.cache_dir_edit.setFixedWidth(280)
         header_bar.addWidget(self.cache_dir_edit)
 
         browse_dir_btn = QPushButton("Browse")
@@ -163,17 +167,22 @@ class VLLMManagerGUI(QMainWindow):
         # VIEW 1: Server Manager
         server_view = QWidget()
         server_layout = QVBoxLayout(server_view)
+        server_layout.setContentsMargins(0, 0, 0, 0)
 
         splitter = QSplitter(Qt.Vertical)
         top_container = QWidget()
         top_layout = QHBoxLayout(top_container)
         top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(18)
 
         # Config Panel
         vllm_box = QGroupBox("Server Configuration")
         vllm_layout = QVBoxLayout(vllm_box)
+        vllm_layout.setSpacing(14)
+        vllm_layout.setContentsMargins(18, 22, 18, 18)
 
         model_layout = QHBoxLayout()
+        model_layout.setSpacing(12)
         model_layout.addWidget(QLabel("Model:"))
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
@@ -181,19 +190,21 @@ class VLLMManagerGUI(QMainWindow):
         model_layout.addWidget(self.model_combo, 1)
         refresh_btn = QPushButton()
         refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#e5e2e1'))
-        refresh_btn.setFixedWidth(36)
+        refresh_btn.setFixedWidth(40)
         refresh_btn.setToolTip("Rescan local models")
         refresh_btn.clicked.connect(self.refresh_models)
         model_layout.addWidget(refresh_btn)
         vllm_layout.addLayout(model_layout)
 
         row1 = QHBoxLayout()
+        row1.setSpacing(14)
         row1.addWidget(QLabel("Port:"))
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1024, 65535)
         self.port_spin.setValue(8000)
         row1.addWidget(self.port_spin)
 
+        row1.addSpacing(10)
         row1.addWidget(QLabel("Quantization:"))
         self.quant_combo = QComboBox()
         self.quant_combo.addItems(["none", "awq", "gptq", "fp8", "squeezellm"])
@@ -201,6 +212,7 @@ class VLLMManagerGUI(QMainWindow):
         vllm_layout.addLayout(row1)
 
         row2 = QHBoxLayout()
+        row2.setSpacing(14)
         row2.addWidget(QLabel("GPU Mem Util:"))
         self.gpu_spin = QDoubleSpinBox()
         self.gpu_spin.setRange(0.10, 1.00)
@@ -208,6 +220,7 @@ class VLLMManagerGUI(QMainWindow):
         self.gpu_spin.setValue(0.90)
         row2.addWidget(self.gpu_spin)
 
+        row2.addSpacing(10)
         row2.addWidget(QLabel("Max Model Len:"))
         self.max_len_spin = QSpinBox()
         self.max_len_spin.setRange(512, 131072)
@@ -217,10 +230,12 @@ class VLLMManagerGUI(QMainWindow):
         vllm_layout.addLayout(row2)
 
         row3 = QHBoxLayout()
+        row3.setSpacing(14)
         self.tool_choice_cb = QCheckBox("Enable Auto Tool Choice")
         self.tool_choice_cb.setChecked(True)
         row3.addWidget(self.tool_choice_cb)
 
+        row3.addSpacing(10)
         row3.addWidget(QLabel("Tool Parser:"))
         self.tool_parser_combo = QComboBox()
         self.tool_parser_combo.addItems(["none", "qwen3_xml", "llama3_json", "mistral", "hermes"])
@@ -229,6 +244,7 @@ class VLLMManagerGUI(QMainWindow):
         vllm_layout.addLayout(row3)
 
         row4 = QHBoxLayout()
+        row4.setSpacing(12)
         row4.addWidget(QLabel("Extra Flags:"))
         self.extra_flags_edit = QLineEdit()
         self.extra_flags_edit.setPlaceholderText("e.g. --trust-remote-code --dtype float16")
@@ -241,6 +257,7 @@ class VLLMManagerGUI(QMainWindow):
         vllm_layout.addLayout(row4)
 
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(14)
         self.start_vllm_btn = QPushButton("  Launch vLLM Server")
         self.start_vllm_btn.setIcon(qta.icon('fa5s.play', color='#ffffff'))
         self.start_vllm_btn.setObjectName("primaryBtn")
@@ -255,7 +272,7 @@ class VLLMManagerGUI(QMainWindow):
         btn_layout.addWidget(self.stop_vllm_btn)
 
         self.vllm_status_lbl = QLabel("STATUS: IDLE")
-        self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #ffb4a5; padding-left: 10px;")
+        self.vllm_status_lbl.setStyleSheet("font-weight: bold; color: #ffb4a5; padding-left: 12px;")
         btn_layout.addWidget(self.vllm_status_lbl)
         vllm_layout.addLayout(btn_layout)
 
@@ -264,6 +281,9 @@ class VLLMManagerGUI(QMainWindow):
         # Open WebUI Panel
         webui_box = QGroupBox("Open WebUI Monitor")
         webui_layout = QVBoxLayout(webui_box)
+        webui_layout.setSpacing(14)
+        webui_layout.setContentsMargins(18, 22, 18, 18)
+
         self.docker_status_lbl = QLabel("Container Status: Checking...")
         self.docker_status_lbl.setWordWrap(True)
         webui_layout.addWidget(self.docker_status_lbl)
@@ -287,6 +307,7 @@ class VLLMManagerGUI(QMainWindow):
         # Output Log Console
         log_box = QGroupBox("Console Output Stream")
         log_layout = QVBoxLayout(log_box)
+        log_layout.setContentsMargins(18, 22, 18, 18)
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         log_layout.addWidget(self.log_text)
@@ -298,23 +319,30 @@ class VLLMManagerGUI(QMainWindow):
         # VIEW 2: Model Browser
         browser_view = QWidget()
         browser_layout = QVBoxLayout(browser_view)
+        browser_layout.setContentsMargins(0, 0, 0, 0)
+        browser_layout.setSpacing(16)
 
         filter_box = QGroupBox("Browse & Filter Models")
         filter_layout = QVBoxLayout(filter_box)
+        filter_layout.setSpacing(14)
+        filter_layout.setContentsMargins(18, 22, 18, 18)
 
         frow1 = QHBoxLayout()
+        frow1.setSpacing(14)
         frow1.addWidget(QLabel("Family:"))
         self.family_combo = QComboBox()
         self.family_combo.addItems(["All", "Qwen", "Llama", "DeepSeek", "Mistral", "Phi", "Gemma"])
         self.family_combo.currentIndexChanged.connect(self.browse_hf_models)
         frow1.addWidget(self.family_combo)
 
+        frow1.addSpacing(10)
         frow1.addWidget(QLabel("Category:"))
         self.category_combo = QComboBox()
         self.category_combo.addItems(["All", "Coder", "Reasoning / Thinking", "Vision", "AWQ / Quantized"])
         self.category_combo.currentIndexChanged.connect(self.browse_hf_models)
         frow1.addWidget(self.category_combo)
 
+        frow1.addSpacing(10)
         frow1.addWidget(QLabel("Sort By:"))
         self.sort_combo = QComboBox()
         self.sort_combo.addItems(["Most Downloads", "Likes", "Model Size (Asc)", "Model Size (Desc)", "Recently Created"])
@@ -323,6 +351,7 @@ class VLLMManagerGUI(QMainWindow):
         filter_layout.addLayout(frow1)
 
         frow2 = QHBoxLayout()
+        frow2.setSpacing(14)
         self.vram_filter_cb = QCheckBox("Filter by Max GPU VRAM (GB):")
         self.vram_filter_cb.stateChanged.connect(self.browse_hf_models)
         frow2.addWidget(self.vram_filter_cb)
@@ -333,6 +362,7 @@ class VLLMManagerGUI(QMainWindow):
         self.vram_spin.valueChanged.connect(self.browse_hf_models)
         frow2.addWidget(self.vram_spin)
 
+        frow2.addSpacing(10)
         frow2.addWidget(QLabel("Keyword:"))
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search optional keyword...")
@@ -356,6 +386,7 @@ class VLLMManagerGUI(QMainWindow):
         browser_layout.addWidget(self.hf_results_table)
 
         dl_row = QHBoxLayout()
+        dl_row.setSpacing(14)
         self.dl_btn = QPushButton("  Download Selected Model to Cache")
         self.dl_btn.setIcon(qta.icon('fa5s.download', color='#ffffff'))
         self.dl_btn.setObjectName("primaryBtn")
