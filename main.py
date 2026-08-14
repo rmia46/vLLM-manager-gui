@@ -247,9 +247,27 @@ class VLLMManagerGUI(QMainWindow):
         self.model_combo.currentIndexChanged.connect(self.update_selected_model_info)
         self.model_combo.editTextChanged.connect(self.update_selected_model_info)
 
-        # Selected Model Details Info Bar
-        self.selected_model_info_lbl = QLabel("Selected Model Info: Loading...")
-        self.selected_model_info_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 11px; font-weight: bold; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 6px; padding: 5px 10px;")
+        # Selected Model Metadata Horizontal Pill Row
+        meta_row = QHBoxLayout()
+        meta_row.setSpacing(6)
+
+        self.meta_family_lbl = QLabel("FAMILY: --")
+        self.meta_family_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 4px; padding: 2px 8px; max-height: 14px;")
+
+        self.meta_params_lbl = QLabel("PARAMS: --")
+        self.meta_params_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 4px; padding: 2px 8px; max-height: 14px;")
+
+        self.meta_size_lbl = QLabel("DISK SIZE: --")
+        self.meta_size_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 4px; padding: 2px 8px; max-height: 14px;")
+
+        self.meta_status_lbl = QLabel("STATE: CACHED")
+        self.meta_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ac8888; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 4px; padding: 2px 8px; max-height: 14px;")
+
+        meta_row.addWidget(self.meta_family_lbl)
+        meta_row.addWidget(self.meta_params_lbl)
+        meta_row.addWidget(self.meta_size_lbl)
+        meta_row.addWidget(self.meta_status_lbl)
+        meta_row.addStretch()
 
         self.refresh_models()
         hero_top.addWidget(self.model_combo, 1)
@@ -275,7 +293,7 @@ class VLLMManagerGUI(QMainWindow):
         hero_top.addWidget(self.stop_vllm_btn)
 
         hero_card.body_layout.addLayout(hero_top)
-        hero_card.body_layout.addWidget(self.selected_model_info_lbl)
+        hero_card.body_layout.addLayout(meta_row)
 
         # System & Dedicated GPU Gauges Grid
         env_grid = QGridLayout()
@@ -663,7 +681,10 @@ class VLLMManagerGUI(QMainWindow):
     def update_selected_model_info(self):
         model_name = self.model_combo.currentText().strip()
         if not model_name:
-            self.selected_model_info_lbl.setText("MODEL INFO: No model selected")
+            self.meta_family_lbl.setText("FAMILY: --")
+            self.meta_params_lbl.setText("PARAMS: --")
+            self.meta_size_lbl.setText("DISK SIZE: --")
+            self.meta_status_lbl.setText("STATE: NONE")
             return
 
         cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir
@@ -672,22 +693,23 @@ class VLLMManagerGUI(QMainWindow):
         match_detail = next((d for d in details if d["id"] == model_name), None)
 
         if match_detail:
-            size_str = f"{match_detail['size_gb']:.2f} GB"
-            family_str = match_detail['family']
-            params_str = match_detail['params']
-            self.selected_model_info_lbl.setText(
-                f"MODEL INFO: {model_name}  |  Family: {family_str}  |  Params: {params_str}  |  Disk Size: {size_str}"
-            )
+            self.meta_family_lbl.setText(f"FAMILY: {match_detail['family'].upper()}")
+            self.meta_params_lbl.setText(f"PARAMS: {match_detail['params']}")
+            self.meta_size_lbl.setText(f"DISK SIZE: {match_detail['size_gb']:.2f} GB")
+            self.meta_status_lbl.setText("STATE: LOCAL CACHE")
+            self.meta_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 4px; padding: 2px 8px; max-height: 14px;")
         else:
-            # Fallback for typed custom model string
             from model_scanner import detect_model_family
             import re
             family_str = detect_model_family(model_name)
             p_match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_name)
             params_str = f"{p_match.group(1)}B" if p_match else "Unknown"
-            self.selected_model_info_lbl.setText(
-                f"MODEL INFO: {model_name}  |  Family: {family_str}  |  Params: {params_str}  |  Disk Size: Uncached / Remote"
-            )
+
+            self.meta_family_lbl.setText(f"FAMILY: {family_str.upper()}")
+            self.meta_params_lbl.setText(f"PARAMS: {params_str}")
+            self.meta_size_lbl.setText("DISK SIZE: UNCACHED")
+            self.meta_status_lbl.setText("STATE: REMOTE HF REPO")
+            self.meta_status_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; color: #ac8888; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 4px; padding: 2px 8px; max-height: 14px;")
 
     def refresh_storage_manager(self):
         cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir
