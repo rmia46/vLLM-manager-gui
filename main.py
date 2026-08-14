@@ -870,24 +870,34 @@ class VLLMManagerGUI(QMainWindow):
         repo_id = self.hf_results_table.item(selected_rows[0].row(), 0).text()
         cache_dir = self.cache_dir_edit.text().strip()
 
-        # If model repository contains GGUF files, prompt user to select specific file or download repo
+        # If model repository contains GGUF files, prompt user to select specific quant file
         selected_filename = None
         if "GGUF" in repo_id.upper():
             try:
                 api = HfApi()
                 info = api.model_info(repo_id, files_metadata=True)
-                gguf_files = [f.rfilename for f in info.siblings if f.rfilename.endswith(".gguf")]
-                if gguf_files:
+                file_map = {}
+                file_options = []
+                for f in info.siblings:
+                    if f.rfilename.endswith(".gguf"):
+                        size_gb = (getattr(f, "size", 0) or 0) / (1024 ** 3)
+                        display_str = f"{f.rfilename} ({size_gb:.2f} GB)"
+                        file_map[display_str] = f.rfilename
+                        file_options.append(display_str)
+                
+                if file_options:
                     item, ok = QInputDialog.getItem(
                         self,
                         "Select GGUF Quant File",
-                        f"Found {len(gguf_files)} GGUF quant file(s) in repository '{repo_id}'.\nSelect specific file to download (or Cancel for full repo):",
-                        gguf_files,
+                        f"Found {len(file_options)} GGUF quant file(s) in '{repo_id}'.\nSelect specific quant file to download:",
+                        file_options,
                         0,
                         False
                     )
-                    if ok and item:
-                        selected_filename = item
+                    if ok and item and item in file_map:
+                        selected_filename = file_map[item]
+                    elif not ok:
+                        return
             except Exception as e:
                 self.append_log(f"Warning: Could not fetch GGUF file list: {str(e)}\n")
 
