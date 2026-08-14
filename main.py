@@ -29,7 +29,7 @@ class SolidCard(QFrame):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
 
-        # Header with Obsidian Crimson label-caps typography
+        # Uniform Header Bar with strict height constraints
         self.header = QLabel()
         self.header.setObjectName("cardHeader")
         if icon_name:
@@ -39,7 +39,7 @@ class SolidCard(QFrame):
         
         self.layout.addWidget(self.header)
 
-        # Layer 1 Body
+        # Content Layer
         self.body = QWidget()
         self.body_layout = QVBoxLayout(self.body)
         self.body_layout.setContentsMargins(12, 12, 12, 12)
@@ -115,18 +115,18 @@ class VLLMManagerGUI(QMainWindow):
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
         sidebar_layout.setSpacing(8)
 
-        # Branding Header (Plus Jakarta Sans)
+        # Branding Header (Uniform 16pt font size)
         brand_layout = QHBoxLayout()
         brand_layout.setSpacing(8)
         logo_path = os.path.join(os.path.dirname(__file__), "logo.svg")
         if os.path.exists(logo_path):
             logo_lbl = QLabel()
-            pix = QPixmap(logo_path).scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix = QPixmap(logo_path).scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             logo_lbl.setPixmap(pix)
             brand_layout.addWidget(logo_lbl)
 
         brand_label = QLabel("vLLM Manager")
-        brand_label.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
+        brand_label.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
         brand_label.setStyleSheet("color: #ffb3b3; margin-bottom: 0px;")
         brand_layout.addWidget(brand_label, 1)
 
@@ -174,11 +174,11 @@ class VLLMManagerGUI(QMainWindow):
         content_layout.setContentsMargins(16, 16, 16, 16)
         content_layout.setSpacing(12)
 
-        # Top Header Bar
+        # Top Header Bar (Uniform 16pt font size)
         header_bar = QHBoxLayout()
         header_bar.setSpacing(10)
         header_title = QLabel("vLLM Manager")
-        header_title.setFont(QFont("Plus Jakarta Sans", 18, QFont.Bold))
+        header_title.setFont(QFont("Plus Jakarta Sans", 16, QFont.Bold))
         header_title.setStyleSheet("color: #e5e2e1;")
         header_bar.addWidget(header_title)
 

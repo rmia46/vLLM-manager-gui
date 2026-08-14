@@ -43,7 +43,7 @@ QFrame#panelCard {
     border-radius: 16px;
 }
 
-/* Card Header (Tactile Industrial Pill Header, #1A1A1A fill) */
+/* Uniform Card Header Bar (11px JetBrains Mono, 28px Height) */
 QLabel#cardHeader {
     background-color: #1A1A1A;
     color: #ffb3b3;
@@ -51,7 +51,9 @@ QLabel#cardHeader {
     font-weight: 700;
     font-size: 11px;
     letter-spacing: 0.08em;
-    padding: 8px 14px;
+    padding: 6px 12px;
+    min-height: 16px;
+    max-height: 16px;
     border-top-left-radius: 15px;
     border-top-right-radius: 15px;
     border-bottom: 1px solid #2A2A2A;
