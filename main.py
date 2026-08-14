@@ -2,6 +2,7 @@ import sys
 import os
 import requests
 import webbrowser
+import qtawesome as qta
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QComboBox, QCheckBox, QDoubleSpinBox, QSpinBox,
@@ -85,15 +86,17 @@ class VLLMManagerGUI(QMainWindow):
         sidebar_layout.addWidget(brand_label)
         sidebar_layout.addWidget(sub_brand)
 
-        # Navigation buttons
-        self.nav_server_btn = QPushButton("🖥 Server Manager")
+        # Navigation buttons with FontAwesome icons
+        self.nav_server_btn = QPushButton("  Server Manager")
+        self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ac8888'))
         self.nav_server_btn.setObjectName("navBtn")
         self.nav_server_btn.setCheckable(True)
         self.nav_server_btn.setChecked(True)
         self.nav_server_btn.clicked.connect(lambda: self.switch_tab(0))
         sidebar_layout.addWidget(self.nav_server_btn)
 
-        self.nav_browser_btn = QPushButton("🤗 Model Browser")
+        self.nav_browser_btn = QPushButton("  Model Browser")
+        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ac8888'))
         self.nav_browser_btn.setObjectName("navBtn")
         self.nav_browser_btn.setCheckable(True)
         self.nav_browser_btn.clicked.connect(lambda: self.switch_tab(1))
@@ -102,7 +105,8 @@ class VLLMManagerGUI(QMainWindow):
         sidebar_layout.addStretch()
 
         # Engine Quick Action in Sidebar
-        restart_btn = QPushButton("🔄 Restart Engine")
+        restart_btn = QPushButton("  Restart Engine")
+        restart_btn.setIcon(qta.icon('fa5s.redo-alt', color='#e5e2e1'))
         restart_btn.setObjectName("secondaryBtn")
         restart_btn.clicked.connect(self.stop_vllm)
         sidebar_layout.addWidget(restart_btn)
@@ -133,6 +137,7 @@ class VLLMManagerGUI(QMainWindow):
         header_bar.addWidget(self.cache_dir_edit)
 
         browse_dir_btn = QPushButton("Browse")
+        browse_dir_btn.setIcon(qta.icon('fa5s.folder-open', color='#e5e2e1'))
         browse_dir_btn.setObjectName("secondaryBtn")
         browse_dir_btn.clicked.connect(self.select_cache_directory)
         header_bar.addWidget(browse_dir_btn)
@@ -161,8 +166,10 @@ class VLLMManagerGUI(QMainWindow):
         self.model_combo.setEditable(True)
         self.refresh_models()
         model_layout.addWidget(self.model_combo, 1)
-        refresh_btn = QPushButton("🔄")
+        refresh_btn = QPushButton()
+        refresh_btn.setIcon(qta.icon('fa5s.sync-alt', color='#e5e2e1'))
         refresh_btn.setFixedWidth(36)
+        refresh_btn.setToolTip("Rescan local models")
         refresh_btn.clicked.connect(self.refresh_models)
         model_layout.addWidget(refresh_btn)
         vllm_layout.addLayout(model_layout)
@@ -213,19 +220,22 @@ class VLLMManagerGUI(QMainWindow):
         self.extra_flags_edit = QLineEdit()
         self.extra_flags_edit.setPlaceholderText("e.g. --trust-remote-code --dtype float16")
         row4.addWidget(self.extra_flags_edit)
-        flags_help_btn = QPushButton("❓ Flags Info")
+        flags_help_btn = QPushButton("  Flags Info")
+        flags_help_btn.setIcon(qta.icon('fa5s.question-circle', color='#e5e2e1'))
         flags_help_btn.setObjectName("secondaryBtn")
         flags_help_btn.clicked.connect(self.show_flags_help)
         row4.addWidget(flags_help_btn)
         vllm_layout.addLayout(row4)
 
         btn_layout = QHBoxLayout()
-        self.start_vllm_btn = QPushButton("▶ Launch vLLM Server")
+        self.start_vllm_btn = QPushButton("  Launch vLLM Server")
+        self.start_vllm_btn.setIcon(qta.icon('fa5s.play', color='#ffffff'))
         self.start_vllm_btn.setObjectName("primaryBtn")
         self.start_vllm_btn.clicked.connect(self.start_vllm)
         btn_layout.addWidget(self.start_vllm_btn)
 
-        self.stop_vllm_btn = QPushButton("⏹ Stop Server")
+        self.stop_vllm_btn = QPushButton("  Stop Server")
+        self.stop_vllm_btn.setIcon(qta.icon('fa5s.stop', color='#ffffff'))
         self.stop_vllm_btn.setObjectName("stopBtn")
         self.stop_vllm_btn.setEnabled(False)
         self.stop_vllm_btn.clicked.connect(self.stop_vllm)
@@ -245,12 +255,14 @@ class VLLMManagerGUI(QMainWindow):
         self.docker_status_lbl.setWordWrap(True)
         webui_layout.addWidget(self.docker_status_lbl)
 
-        open_browser_btn = QPushButton("🌐 Open WebUI (localhost:8080)")
+        open_browser_btn = QPushButton("  Open WebUI (localhost:8080)")
+        open_browser_btn.setIcon(qta.icon('fa5s.external-link-alt', color='#ffffff'))
         open_browser_btn.setObjectName("primaryBtn")
         open_browser_btn.clicked.connect(lambda: webbrowser.open("http://localhost:8080"))
         webui_layout.addWidget(open_browser_btn)
 
-        self.toggle_docker_btn = QPushButton("⚡ Start Container")
+        self.toggle_docker_btn = QPushButton("  Start Container")
+        self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#e5e2e1'))
         self.toggle_docker_btn.setObjectName("secondaryBtn")
         self.toggle_docker_btn.clicked.connect(self.toggle_docker)
         webui_layout.addWidget(self.toggle_docker_btn)
@@ -314,7 +326,8 @@ class VLLMManagerGUI(QMainWindow):
         self.search_edit.returnPressed.connect(self.browse_hf_models)
         frow2.addWidget(self.search_edit, 1)
 
-        apply_btn = QPushButton("🔎 Apply")
+        apply_btn = QPushButton("  Apply")
+        apply_btn.setIcon(qta.icon('fa5s.search', color='#e5e2e1'))
         apply_btn.setObjectName("secondaryBtn")
         apply_btn.clicked.connect(self.browse_hf_models)
         frow2.addWidget(apply_btn)
@@ -330,7 +343,8 @@ class VLLMManagerGUI(QMainWindow):
         browser_layout.addWidget(self.hf_results_table)
 
         dl_row = QHBoxLayout()
-        self.dl_btn = QPushButton("⬇ Download Selected Model to Cache")
+        self.dl_btn = QPushButton("  Download Selected Model to Cache")
+        self.dl_btn.setIcon(qta.icon('fa5s.download', color='#ffffff'))
         self.dl_btn.setObjectName("primaryBtn")
         self.dl_btn.clicked.connect(self.download_selected_model)
         dl_row.addWidget(self.dl_btn)
@@ -345,6 +359,10 @@ class VLLMManagerGUI(QMainWindow):
         self.stack.setCurrentIndex(index)
         self.nav_server_btn.setChecked(index == 0)
         self.nav_browser_btn.setChecked(index == 1)
+
+        # Update icons color on active selection
+        self.nav_server_btn.setIcon(qta.icon('fa5s.server', color='#ffb3b3' if index == 0 else '#ac8888'))
+        self.nav_browser_btn.setIcon(qta.icon('fa5s.cubes', color='#ffb3b3' if index == 1 else '#ac8888'))
 
     def select_cache_directory(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select HF Cache Directory", self.current_cache_dir)
@@ -426,11 +444,13 @@ class VLLMManagerGUI(QMainWindow):
         if status["container_running"]:
             self.docker_status_lbl.setText(f"Container: RUNNING\n({status['status_text']})")
             self.docker_status_lbl.setStyleSheet("color: #a6e3a1;")
-            self.toggle_docker_btn.setText("⏹ Stop Container")
+            self.toggle_docker_btn.setText("  Stop Container")
+            self.toggle_docker_btn.setIcon(qta.icon('fa5s.stop-circle', color='#e5e2e1'))
         else:
             self.docker_status_lbl.setText(f"Container: STOPPED")
             self.docker_status_lbl.setStyleSheet("color: #f38ba8;")
-            self.toggle_docker_btn.setText("⚡ Start Container")
+            self.toggle_docker_btn.setText("  Start Container")
+            self.toggle_docker_btn.setIcon(qta.icon('fa5s.bolt', color='#e5e2e1'))
 
     def toggle_docker(self):
         status = check_open_webui_status()
