@@ -244,6 +244,8 @@ class VLLMManagerGUI(QMainWindow):
         hero_top.addWidget(QLabel("Select Model:"))
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
+        self.model_combo.currentIndexChanged.connect(self.update_selected_model_info)
+        self.model_combo.editTextChanged.connect(self.update_selected_model_info)
         self.refresh_models()
         hero_top.addWidget(self.model_combo, 1)
 
@@ -268,6 +270,11 @@ class VLLMManagerGUI(QMainWindow):
         hero_top.addWidget(self.stop_vllm_btn)
 
         hero_card.body_layout.addLayout(hero_top)
+
+        # Selected Model Details Info Bar
+        self.selected_model_info_lbl = QLabel("Selected Model Info: Loading...")
+        self.selected_model_info_lbl.setStyleSheet("font-family: 'JetBrains Mono'; font-size: 11px; font-weight: bold; color: #ffb3b3; background-color: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 6px; padding: 5px 10px;")
+        hero_card.body_layout.addWidget(self.selected_model_info_lbl)
 
         # System & Dedicated GPU Gauges Grid
         env_grid = QGridLayout()
@@ -639,6 +646,7 @@ class VLLMManagerGUI(QMainWindow):
 
     def refresh_models(self):
         curr = self.model_combo.currentText().strip()
+        self.model_combo.blockSignals(True)
         self.model_combo.clear()
         cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir
         models = get_cached_models(cache_path)
@@ -648,6 +656,37 @@ class VLLMManagerGUI(QMainWindow):
                 self.model_combo.setCurrentText(curr)
         else:
             self.model_combo.addItem("Qwen/Qwen2.5-1.5B-Instruct")
+        self.model_combo.blockSignals(False)
+        self.update_selected_model_info()
+
+    def update_selected_model_info(self):
+        model_name = self.model_combo.currentText().strip()
+        if not model_name:
+            self.selected_model_info_lbl.setText("MODEL INFO: No model selected")
+            return
+
+        cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir
+        details = get_cached_models_details(cache_path)
+
+        match_detail = next((d for d in details if d["id"] == model_name), None)
+
+        if match_detail:
+            size_str = f"{match_detail['size_gb']:.2f} GB"
+            family_str = match_detail['family']
+            params_str = match_detail['params']
+            self.selected_model_info_lbl.setText(
+                f"MODEL INFO: {model_name}  |  Family: {family_str}  |  Params: {params_str}  |  Disk Size: {size_str}"
+            )
+        else:
+            # Fallback for typed custom model string
+            from model_scanner import detect_model_family
+            import re
+            family_str = detect_model_family(model_name)
+            p_match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_name)
+            params_str = f"{p_match.group(1)}B" if p_match else "Unknown"
+            self.selected_model_info_lbl.setText(
+                f"MODEL INFO: {model_name}  |  Family: {family_str}  |  Params: {params_str}  |  Disk Size: Uncached / Remote"
+            )
 
     def refresh_storage_manager(self):
         cache_path = self.cache_dir_edit.text().strip() if hasattr(self, 'cache_dir_edit') else self.current_cache_dir

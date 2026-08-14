@@ -1,13 +1,30 @@
 import os
 import shutil
+import re
 from pathlib import Path
 
 DEFAULT_HF_CACHE_DIR = "/data/rspace/codespace/libs/hf_cache"
 
+def detect_model_family(model_id):
+    model_upper = model_id.upper()
+    if "QWEN" in model_upper:
+        return "Qwen Family"
+    elif "LLAMA" in model_upper:
+        return "Llama Family"
+    elif "DEEPSEEK" in model_upper:
+        return "DeepSeek Family"
+    elif "MISTRAL" in model_upper or "MIXTRAL" in model_upper:
+        return "Mistral Family"
+    elif "PHI" in model_upper:
+        return "Phi Family"
+    elif "GEMMA" in model_upper:
+        return "Gemma Family"
+    return "Transformers Base"
+
 def get_cached_models_details(cache_dir_path=DEFAULT_HF_CACHE_DIR):
     """
     Scans HF cache directory and returns detailed info:
-    list of dicts containing: id, folder_name, folder_path, size_gb
+    list of dicts containing: id, folder_name, folder_path, size_gb, family, params_b
     """
     results = []
     path = Path(cache_dir_path)
@@ -29,12 +46,18 @@ def get_cached_models_details(cache_dir_path=DEFAULT_HF_CACHE_DIR):
             # Calculate total folder size
             total_bytes = sum(f.stat().st_size for f in folder.glob('**/*') if f.is_file())
             size_gb = round(total_bytes / (1024 ** 3), 2)
+            family = detect_model_family(model_id)
+
+            match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]\b', model_id)
+            params = f"{match.group(1)}B" if match else "Unknown"
 
             results.append({
                 "id": model_id,
                 "folder_name": folder.name,
                 "folder_path": str(folder),
-                "size_gb": size_gb
+                "size_gb": size_gb,
+                "family": family,
+                "params": params
             })
     return sorted(results, key=lambda x: x["id"])
 
