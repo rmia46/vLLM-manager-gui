@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>vLLM Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"/>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#131313",
+            "surface-dim": "#0A0A0A",
+            "surface-container": "#1c1b1b",
+            "surface-container-high": "#242424",
+            "outline": "#353534",
+            "outline-variant": "#201f1f",
+            "primary": "#DC143C",
+            "primary-hover": "#FF4D6D",
+            "on-surface": "#E5E2E1",
+            "on-surface-muted": "#AC8888"
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            title: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0A0A0A; }
+    ::-webkit-scrollbar-thumb { background: #242424; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #DC143C; }
+  </style>
+</head>
+
+<body class="bg-surface-dim text-on-surface font-sans h-screen flex overflow-hidden select-none">
+
+  <!-- Left Sidebar Navbar -->
+  <aside class="w-64 bg-surface border-r border-outline-variant flex flex-col shrink-0 z-20">
+    <div class="p-6 flex items-center gap-3">
+      <img src="logo.svg" class="w-12 h-12" alt="Logo"/>
+      <h1 class="font-title font-bold text-2xl text-primary leading-none">vLLM Manager</h1>
+    </div>
+
+    <nav class="px-4 space-y-2 flex-1 mt-4">
+      <button id="navServerBtn" onclick="switchTab('server')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all bg-surface-container-high text-primary border-l-4 border-primary">
+        <i class="fas fa-server w-5 text-center"></i>
+        <span>Server Manager</span>
+      </button>
+
+      <button id="navBrowserBtn" onclick="switchTab('browser')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-on-surface-muted hover:bg-surface-container hover:text-on-surface">
+        <i class="fas fa-cubes w-5 text-center"></i>
+        <span>Model Browser</span>
+      </button>
+    </nav>
+
+    <div class="p-4 border-t border-outline-variant">
+      <button onclick="stopVLLM()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold transition-all">
+        <i class="fas fa-redo-alt"></i>
+        <span>Restart Engine</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Workspace Content -->
+  <main class="flex-1 flex flex-col overflow-hidden bg-surface-dim">
+    
+    <!-- Top Header Bar -->
+    <header class="h-16 px-6 border-b border-outline-variant flex items-center justify-between shrink-0 bg-surface">
+      <h2 id="headerTitle" class="font-title font-bold text-xl text-on-surface">Server Manager</h2>
+      
+      <div class="flex items-center gap-3 text-xs">
+        <span class="text-on-surface-muted font-medium">HF Cache:</span>
+        <input id="cacheDirInput" type="text" readonly class="bg-surface-container border border-outline px-3 py-1.5 rounded-lg w-72 text-on-surface font-mono outline-none"/>
+        <button onclick="selectCacheDir()" class="px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-outline text-on-surface font-semibold flex items-center gap-1.5 transition-all">
+          <i class="fas fa-folder-open text-primary"></i> Browse
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab 1: Server Manager -->
+    <div id="tabServer" class="flex-1 flex flex-col p-6 gap-6 overflow-hidden">
+      
+      <div class="grid grid-cols-12 gap-6">
+        <!-- Configuration Card -->
+        <div class="col-span-8 bg-surface border border-outline rounded-xl p-5 space-y-4">
+          <h3 class="font-title font-bold text-base text-primary flex items-center gap-2 border-b border-outline-variant pb-2">
+            <i class="fas fa-sliders-h"></i> Server Configuration
+          </h3>
+
+          <div class="grid grid-cols-12 gap-4">
+            <div class="col-span-10 flex flex-col gap-1">
+              <label class="text-xs font-semibold text-on-surface-muted">Model Name / Path</label>
+              <select id="modelSelect" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary outline-none"></select>
+            </div>
+            <div class="col-span-2 flex items-end">
+              <button onclick="scanModels()" class="w-full py-2 bg-surface-container-high hover:bg-outline rounded-lg text-on-surface transition-all flex items-center justify-center">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-semibold text-on-surface-muted">Port</label>
+              <input id="portInput" type="number" value="8000" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none"/>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-semibold text-on-surface-muted">Quantization</label>
+              <select id="quantSelect" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none">
+                <option value="none">none</option>
+                <option value="awq">awq</option>
+                <option value="gptq">gptq</option>
+                <option value="fp8">fp8</option>
+                <option value="squeezellm">squeezellm</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-semibold text-on-surface-muted">GPU Memory Util (0.10 - 1.00)</label>
+              <input id="gpuUtilInput" type="number" step="0.05" min="0.10" max="1.00" value="0.90" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none"/>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-semibold text-on-surface-muted">Max Model Length</label>
+              <input id="maxLenInput" type="number" step="512" value="4096" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none"/>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <label class="flex items-center gap-2 text-xs font-semibold text-on-surface cursor-pointer">
+              <input id="autoToolCb" type="checkbox" checked class="accent-primary w-4 h-4"/>
+              Enable Auto Tool Choice
+            </label>
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-semibold text-on-surface-muted">Tool Call Parser</label>
+              <select id="toolParserSelect" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none">
+                <option value="qwen3_xml">qwen3_xml</option>
+                <option value="llama3_json">llama3_json</option>
+                <option value="mistral">mistral</option>
+                <option value="hermes">hermes</option>
+                <option value="none">none</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-on-surface-muted">Extra Flags</label>
+            <input id="extraFlagsInput" type="text" placeholder="e.g. --trust-remote-code --dtype float16" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none"/>
+          </div>
+
+          <div class="flex items-center justify-between pt-2">
+            <div class="flex gap-3">
+              <button id="launchBtn" onclick="launchVLLM()" class="px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-md transition-all flex items-center gap-2">
+                <i class="fas fa-play"></i> Launch Server
+              </button>
+              <button id="stopBtn" onclick="stopVLLM()" disabled class="px-5 py-2.5 rounded-lg bg-red-900 opacity-50 text-white text-sm font-bold transition-all flex items-center gap-2 cursor-not-allowed">
+                <i class="fas fa-stop"></i> Stop Server
+              </button>
+            </div>
+            <span id="vllmStatus" class="font-bold text-sm text-yellow-400">STATUS: IDLE</span>
+          </div>
+        </div>
+
+        <!-- Open WebUI Card -->
+        <div class="col-span-4 bg-surface border border-outline rounded-xl p-5 flex flex-col justify-between">
+          <div class="space-y-4">
+            <h3 class="font-title font-bold text-base text-primary flex items-center gap-2 border-b border-outline-variant pb-2">
+              <i class="fas fa-desktop"></i> Open WebUI Monitor
+            </h3>
+            <p id="dockerStatus" class="text-sm font-medium text-on-surface-muted">Container Status: Checking...</p>
+          </div>
+
+          <div class="space-y-3">
+            <a href="http://localhost:8080" target="_blank" class="w-full py-3 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all">
+              <i class="fas fa-external-link-alt"></i> Open WebUI (8080)
+            </a>
+            <button id="dockerToggleBtn" onclick="toggleDocker()" class="w-full py-2.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-sm font-semibold transition-all flex items-center justify-center gap-2">
+              <i class="fas fa-bolt"></i> Start Container
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Console Log Output Stream -->
+      <div class="flex-1 bg-surface border border-outline rounded-xl p-4 flex flex-col overflow-hidden">
+        <h4 class="text-xs font-bold text-primary uppercase tracking-wider mb-2">Console Log Stream</h4>
+        <textarea id="logArea" readonly class="flex-1 bg-surface-dim border border-outline-variant rounded-lg p-3 font-mono text-xs text-on-surface outline-none resize-none overflow-y-auto"></textarea>
+      </div>
+
+    </div>
+
+    <!-- Tab 2: Model Browser -->
+    <div id="tabBrowser" class="flex-1 flex flex-col p-6 gap-6 overflow-hidden hidden">
+      <!-- Filter Bar -->
+      <div class="bg-surface border border-outline rounded-xl p-5 space-y-4">
+        <div class="grid grid-cols-3 gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-on-surface-muted">Model Family</label>
+            <select id="familySelect" onchange="browseHF()" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none">
+              <option value="All">All</option>
+              <option value="Qwen">Qwen</option>
+              <option value="Llama">Llama</option>
+              <option value="DeepSeek">DeepSeek</option>
+              <option value="Mistral">Mistral</option>
+              <option value="Phi">Phi</option>
+              <option value="Gemma">Gemma</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-on-surface-muted">Category</label>
+            <select id="categorySelect" onchange="browseHF()" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none">
+              <option value="All">All</option>
+              <option value="Coder">Coder</option>
+              <option value="Reasoning / Thinking">Reasoning / Thinking</option>
+              <option value="Vision">Vision</option>
+              <option value="AWQ / Quantized">AWQ / Quantized</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-on-surface-muted">Sort By</label>
+            <select id="sortSelect" onchange="browseHF()" class="bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none">
+              <option value="Most Downloads">Most Downloads</option>
+              <option value="Likes">Likes</option>
+              <option value="Model Size (Asc)">Model Size (Asc)</option>
+              <option value="Model Size (Desc)">Model Size (Desc)</option>
+              <option value="Recently Created">Recently Created</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-12 gap-4 items-center">
+          <div class="col-span-4 flex items-center gap-2">
+            <input id="vramCb" type="checkbox" onchange="browseHF()" class="accent-primary w-4 h-4"/>
+            <label class="text-xs font-semibold text-on-surface">Max GPU VRAM (GB):</label>
+            <input id="vramInput" type="number" value="16" min="1" max="128" onchange="browseHF()" class="w-20 bg-surface-container border border-outline rounded-lg px-2 py-1 text-sm text-on-surface outline-none"/>
+          </div>
+          <div class="col-span-6">
+            <input id="searchKeyword" type="text" placeholder="Search keyword..." class="w-full bg-surface-container border border-outline rounded-lg px-3 py-2 text-sm text-on-surface outline-none"/>
+          </div>
+          <div class="col-span-2">
+            <button onclick="browseHF()" class="w-full py-2 bg-surface-container-high hover:bg-outline rounded-lg text-on-surface font-semibold text-sm transition-all flex items-center justify-center gap-2">
+              <i class="fas fa-search text-primary"></i> Apply
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Models Table -->
+      <div class="flex-1 bg-surface border border-outline rounded-xl overflow-hidden flex flex-col">
+        <div class="flex-1 overflow-y-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-surface-container sticky top-0 border-b border-outline-variant text-primary text-xs uppercase font-bold">
+              <tr>
+                <th class="p-3">Model Repo ID</th>
+                <th class="p-3">Params</th>
+                <th class="p-3">Est. VRAM (FP16)</th>
+                <th class="p-3">Downloads</th>
+                <th class="p-3">Likes</th>
+                <th class="p-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="hfTableBody" class="divide-y divide-outline-variant text-sm font-medium"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    var backend = null;
+
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+      backend = channel.objects.backend;
+
+      backend.getCacheDir(function(dir) {
+        document.getElementById('cacheDirInput').value = dir;
+      });
+
+      backend.logSignal.connect(function(text) {
+        var area = document.getElementById('logArea');
+        area.value += text + '\n';
+        area.scrollTop = area.scrollHeight;
+      });
+
+      backend.statusSignal.connect(function(status) {
+        var lbl = document.getElementById('vllmStatus');
+        lbl.innerText = 'STATUS: ' + status;
+        var launchBtn = document.getElementById('launchBtn');
+        var stopBtn = document.getElementById('stopBtn');
+
+        if (status === 'RUNNING') {
+          lbl.className = 'font-bold text-sm text-green-400';
+        } else if (status === 'STOPPED' || status === 'IDLE') {
+          lbl.className = 'font-bold text-sm text-yellow-400';
+          launchBtn.disabled = false;
+          stopBtn.disabled = true;
+          stopBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else if (status === 'ERROR') {
+          lbl.className = 'font-bold text-sm text-red-500';
+          launchBtn.disabled = false;
+          stopBtn.disabled = true;
+        }
+      });
+
+      backend.dockerSignal.connect(function(data) {
+        var lbl = document.getElementById('dockerStatus');
+        var btn = document.getElementById('dockerToggleBtn');
+        if (data.container_running) {
+          lbl.innerText = 'Container: RUNNING (' + data.status_text + ')';
+          lbl.className = 'text-sm font-semibold text-green-400';
+          btn.innerHTML = '<i class="fas fa-stop-circle"></i> Stop Container';
+        } else {
+          lbl.innerText = 'Container: STOPPED';
+          lbl.className = 'text-sm font-semibold text-red-400';
+          btn.innerHTML = '<i class="fas fa-bolt"></i> Start Container';
+        }
+      });
+
+      backend.modelsSignal.connect(function(models) {
+        populateModelCombo(models);
+      });
+
+      backend.hfResultsSignal.connect(function(results) {
+        populateHFTable(results);
+      });
+
+      scanModels();
+      browseHF();
+    });
+
+    function switchTab(tab) {
+      document.getElementById('tabServer').classList.toggle('hidden', tab !== 'server');
+      document.getElementById('tabBrowser').classList.toggle('hidden', tab !== 'browser');
+      document.getElementById('headerTitle').innerText = tab === 'server' ? 'Server Manager' : 'Model Browser';
+
+      document.getElementById('navServerBtn').className = tab === 'server' 
+        ? 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all bg-surface-container-high text-primary border-l-4 border-primary'
+        : 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-on-surface-muted hover:bg-surface-container hover:text-on-surface';
+
+      document.getElementById('navBrowserBtn').className = tab === 'browser'
+        ? 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all bg-surface-container-high text-primary border-l-4 border-primary'
+        : 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all text-on-surface-muted hover:bg-surface-container hover:text-on-surface';
+    }
+
+    function selectCacheDir() {
+      if (backend) backend.selectCacheDir();
+    }
+
+    function scanModels() {
+      if (backend) {
+        backend.scanLocalModels(function(models) {
+          populateModelCombo(models);
+        });
+      }
+    }
+
+    function populateModelCombo(models) {
+      var sel = document.getElementById('modelSelect');
+      sel.innerHTML = '';
+      if (models && models.length > 0) {
+        models.forEach(function(m) {
+          var opt = document.createElement('option');
+          opt.value = m;
+          opt.innerText = m;
+          sel.appendChild(opt);
+        });
+      } else {
+        var opt = document.createElement('option');
+        opt.value = 'Qwen/Qwen2.5-1.5B-Instruct';
+        opt.innerText = 'Qwen/Qwen2.5-1.5B-Instruct';
+        sel.appendChild(opt);
+      }
+    }
+
+    function launchVLLM() {
+      if (!backend) return;
+      var model = document.getElementById('modelSelect').value;
+      var cache = document.getElementById('cacheDirInput').value;
+      var port = parseInt(document.getElementById('portInput').value);
+      var quant = document.getElementById('quantSelect').value;
+      var gpuUtil = parseFloat(document.getElementById('gpuUtilInput').value);
+      var maxLen = parseInt(document.getElementById('maxLenInput').value);
+      var autoTool = document.getElementById('autoToolCb').checked;
+      var toolParser = document.getElementById('toolParserSelect').value;
+      var extra = document.getElementById('extraFlagsInput').value;
+
+      document.getElementById('launchBtn').disabled = true;
+      var stopBtn = document.getElementById('stopBtn');
+      stopBtn.disabled = false;
+      stopBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+      backend.launchVLLM(model, cache, port, quant, gpuUtil, maxLen, autoTool, toolParser, extra);
+    }
+
+    function stopVLLM() {
+      if (backend) backend.stopVLLM();
+    }
+
+    function toggleDocker() {
+      if (backend) backend.toggleDocker();
+    }
+
+    function browseHF() {
+      if (!backend) return;
+      var family = document.getElementById('familySelect').value;
+      var cat = document.getElementById('categorySelect').value;
+      var sort = document.getElementById('sortSelect').value;
+      var kw = document.getElementById('searchKeyword').value;
+      var vram = document.getElementById('vramCb').checked ? parseInt(document.getElementById('vramInput').value) : 0;
+
+      backend.browseHF(family, cat, sort, kw, vram);
+    }
+
+    function populateHFTable(results) {
+      var tbody = document.getElementById('hfTableBody');
+      tbody.innerHTML = '';
+      results.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.className = 'hover:bg-surface-container transition-all';
+        tr.innerHTML = `
+          <td class="p-3 font-semibold text-on-surface">${r.id}</td>
+          <td class="p-3 text-on-surface-muted">${r.params_b}</td>
+          <td class="p-3 text-on-surface-muted">${r.vram_gb}</td>
+          <td class="p-3 text-on-surface-muted">${r.downloads}</td>
+          <td class="p-3 text-on-surface-muted">${r.likes}</td>
+          <td class="p-3 text-right">
+            <button onclick="downloadModel('${r.id}')" class="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg transition-all">
+              <i class="fas fa-download"></i> Download
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function downloadModel(repoId) {
+      if (backend) backend.downloadModel(repoId);
+    }
+  </script>
+</body>
+</html>

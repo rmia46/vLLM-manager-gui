@@ -17,8 +17,8 @@ QPushButton#navBtn {
     background-color: transparent;
     color: #ac8888;
     border: none;
-    border-radius: 8px;
-    padding: 12px 16px;
+    border-radius: 6px;
+    padding: 10px 14px;
     text-align: left;
     font-size: 13px;
     font-weight: 600;
@@ -32,13 +32,13 @@ QPushButton#navBtn:checked {
     color: #ffb3b3;
     border-left: 3px solid #dc143c;
 }
-/* Group Box Card Containers */
+/* Group Box Cards */
 QGroupBox {
     background-color: #131313;
     border: 1px solid #242424;
     border-radius: 12px;
-    margin-top: 16px;
-    padding: 20px 18px 18px 18px;
+    margin-top: 14px;
+    padding: 18px 16px 16px 16px;
     font-size: 13px;
     font-weight: bold;
     color: #ffb3b3;
@@ -46,16 +46,18 @@ QGroupBox {
 QGroupBox::title {
     subcontrol-origin: margin;
     left: 14px;
-    padding: 0 8px;
+    padding: 0 6px;
 }
+
+/* Symmetric Form Fields & Dropdowns */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
     background-color: #1a1a1a;
     border: 1px solid #353534;
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     font-size: 13px;
     color: #e5e2e1;
-    min-height: 20px;
+    min-height: 22px;
 }
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
     border: 1px solid #dc143c;
@@ -68,9 +70,10 @@ QPushButton#primaryBtn {
     background-color: #dc143c;
     color: #ffffff;
     border-radius: 8px;
-    padding: 12px 22px;
+    padding: 10px 20px;
     font-size: 13px;
     font-weight: bold;
+    min-height: 22px;
 }
 QPushButton#primaryBtn:hover {
     background-color: #ff4d6d;
@@ -79,9 +82,10 @@ QPushButton#stopBtn {
     background-color: #920703;
     color: #ffffff;
     border-radius: 8px;
-    padding: 12px 22px;
+    padding: 10px 20px;
     font-size: 13px;
     font-weight: bold;
+    min-height: 22px;
 }
 QPushButton#stopBtn:hover {
     background-color: #c91818;
@@ -91,9 +95,10 @@ QPushButton#secondaryBtn {
     color: #e5e2e1;
     border: 1px solid #353534;
     border-radius: 8px;
-    padding: 10px 18px;
+    padding: 8px 16px;
     font-size: 13px;
     font-weight: 600;
+    min-height: 22px;
 }
 QPushButton#secondaryBtn:hover {
     background-color: #2a2a2a;
@@ -111,7 +116,7 @@ QTextEdit, QTableWidget {
 QHeaderView::section {
     background-color: #1a1a1a;
     color: #ffb3b3;
-    padding: 10px;
+    padding: 8px;
     border: 1px solid #201f1f;
     font-size: 13px;
     font-weight: bold;
